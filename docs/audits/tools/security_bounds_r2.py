@@ -9,7 +9,10 @@ here is evidence that Qalqan or any profile is secure.
 
 Bounds used (see QAZWIRE_SECURITY_BOUNDS_R2.md for sources):
   CTR (distinct counter blocks)   : sigma_e^2 / 2^(n+1)                 PRP/PRF switching
-  EMAC* (MAC 2 + padding 2)       : 2 * sigma_F^2 / 2^n                 Petrank-Rackoff (as cited by Black-Rogaway)
+  EMAC* (MAC 2 + padding 2)       : 2.5 * sigma_F^2 / 2^n               Black-Rogaway, Thm 4 (ECBC, PRF bound), restricted
+                                                                        to padded inputs.  ERRATUM R3: R2 used 2*sigma^2/2^n,
+                                                                        which Black-Rogaway cite as a FORGERY bound (Petrank-
+                                                                        Rackoff), not a PRF bound.
   CMAC/OMAC (MAC 5)               : (4 * sigma_F^2 + 1) / 2^n           Iwata-Kurosawa, Indocrypt 2003
   EAX (19772 mech. 4)             : priv 9 sigma^2/2^n ; auth 10.5 sigma^2/2^n + v/2^t   Bellare-Rogaway-Wagner 2004 (*)
   forgery by guessing             : v / 2^t
@@ -49,7 +52,7 @@ def conf_sigma_max(n, cons, ca_log2):
 def integ_sigma_max(n, cons, ia_log2):
     # split IA budget: half to PRF/collision term, half to guessing term
     budget = ia_log2 - 1
-    c = {"emac": 2.0, "cmac": 4.0, "eax": 10.5}[cons]
+    c = {"emac": 2.5, "cmac": 4.0, "eax": 10.5}[cons]
     return 0.5 * (budget + n - log2(c))
 
 def guess_v_max(t, ia_log2):
@@ -84,7 +87,7 @@ print("\n=== Re-check of R1 spec section 11 values ===")
 s = 35 + 12      # 2^35 packets x 2^12 blocks (Q128)
 print(f"  Q128CM R1 limits sigma=2^{s}: CTR term 2^{2*s-129}, CMAC term 2^{lg(4) + 2*s - 128:.0f}  (target T_A needs <= 2^-60 / 2^-57)")
 s = 64 + 11      # 2^64 packets x 2^11 blocks (Q256)
-print(f"  Q256EM max reachable sigma=2^{s}: CTR term 2^{2*s-257}, EMAC term 2^{lg(2) + 2*s - 256:.0f}  (generic terms only; Adv^prp unknown)")
+print(f"  Q256EM max reachable sigma=2^{s}: CTR term 2^{2*s-257}, EMAC term 2^{lg(2.5) + 2*s - 256:.1f}  (generic terms only; Adv^prp unknown)")
 
 print("\n=== Multi-user: multi-target exhaustive key search u*p/2^k (k=256) ===")
 for u, p in ((2**40, 2**100), (2**50, 2**128)):
