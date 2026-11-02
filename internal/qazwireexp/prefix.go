@@ -43,10 +43,10 @@ func NewPrefixParser(profile ProfileID) (*PrefixParser, error) {
 // transport packet; only the future audited crypto Open may authenticate.
 type UnauthenticatedPrefix struct {
 	messageType MessageType
-	profile ProfileID
+	profile     ProfileID
 }
 
-func (p UnauthenticatedPrefix) Type() MessageType { return p.messageType }
+func (p UnauthenticatedPrefix) Type() MessageType  { return p.messageType }
 func (p UnauthenticatedPrefix) Profile() ProfileID { return p.profile }
 
 var (
