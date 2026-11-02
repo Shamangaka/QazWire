@@ -25,8 +25,8 @@
 | --- | --- |
 | `Shamangaka/QazWire` | Публичный форк `WireGuard/wireguard-go`; ветка по умолчанию `master`. |
 | `master` | `b3bc704ef0ee21a36298601a9e1e5ff90377ac52` — совпадает с upstream-кодом, изменений криптографии нет. Все ссылки `file:line` ниже даны для этого коммита. |
-| `experimental/qalqan-transport-v0.1` | `19af688ed5e8517116a6d60dc53a768eaaf14574`; три коммита только с документацией: `docs/qazwire/EXPERIMENT_PLAN.md`, `docs/qazwire/PROTOCOL_BOUNDARY_V0_1.md`, `scripts/qazwire-baseline.sh`. Исходный код `device/*` не изменён. |
-| Draft PR №1 | Открыт, draft, `experimental/qalqan-transport-v0.1 → master`. В описании PR прямо указано, что baseline-скрипт не запускался. R1 не изменяет ни PR №1, ни эту ветку. |
+| `experimental/qalqan-transport-v0.1` | В начале R1 — `19af688`: три коммита только с документацией (`docs/qazwire/EXPERIMENT_PLAN.md`, `docs/qazwire/PROTOCOL_BOUNDARY_V0_1.md`, `scripts/qazwire-baseline.sh`). Во время R1 владелец добавил коммиты до `5e07792`: стенд `ip netns` (`scripts/qazwire-netns-lab.sh`, `docs/qazwire/M0_NETNS_LAB.md`), процедура совместимости userspace↔kernel (`scripts/qazwire-kernel-interop-m0.sh`, `docs/qazwire/M0_KERNEL_INTEROP.md`), запись `docs/qazwire/evidence/M0_USER_REPORTED_2026-11-02.md` (туннель **стандартного** WireGuard, результат со слов оператора, не воспроизведён) и исправление форматирования в `device/pools_test.go`. Криптография и `device/*` (кроме теста) не изменены; выводы R1 это не затрагивает. |
+| Draft PR №1 | Открыт, draft, `experimental/qalqan-transport-v0.1 → master`. R1 не изменяет ни PR №1, ни эту ветку. |
 | `Shamangaka/QazInfraCrypto` | Приватный, `main` = `efc19f0`. Крейт `qic-core` — заглушка без алгоритмов (`#![forbid(unsafe_code)]`). Профили `QIC-L1..L4` — INCOMPLETE, `QIC-RESEARCH-QALQAN` — RESEARCH ONLY (`docs/security/CRYPTOGRAPHIC_PROFILES.md`). Открытые ветки аудита: `audit/r1-claude-reconciliation`, `audit/r2-1073-matrix-profile-spec-20261031`, `audit/st-rk-1073-atomic-v0-3`. |
 
 ### 0.2 Нормативные первоисточники
