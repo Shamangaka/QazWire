@@ -13,7 +13,7 @@ die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 [[ $# -eq 1 && "$1" == /* && -x "$1" ]] ||
   die "usage: sudo bash scripts/qazwire-netns-lab.sh /absolute/path/to/wireguard-go"
 
-for cmd in ip wg ping awk mktemp sleep date; do
+for cmd in ip wg ping awk mktemp sleep date seq cat tail; do
   command -v "$cmd" >/dev/null 2>&1 || die "missing command: $cmd"
 done
 [[ -c /dev/net/tun ]] || die "/dev/net/tun unavailable; TUN or CAP_NET_ADMIN may be missing"
