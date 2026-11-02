@@ -25,7 +25,7 @@ GO111MODULE=off go vet -tags qazwire_exp ./internal/qazwireexp/keylab
 gofmt -l internal/qazwireexp/keylab/*.go
 ```
 
-All commands passed (gofmt produced no output). **Full-repository build and Ubuntu Go 1.27.3 results are PENDING**. Execute on the operator's host:
+All commands passed (gofmt produced no output). A further `-race -count=100` run of this isolated package also passed. Git blob SHA verification confirms the two locally tested files exactly match the GitHub branch files: `slot.go` = `0810c94466cf322293a425409ada9f01ea12626f`; `slot_test.go` = `75e95df2b1e0a4c09ffc3ac0829f6840c4d51d70`. **Full-repository build and Ubuntu Go 1.27.3 results are PENDING**. Execute on the operator's host:
 
 ```bash
 cd ~/Документы/QazWire
