@@ -2,6 +2,7 @@
 
 **Объект:** PR #3 `feature/m1-exp-protocol-boundary` → `experimental/qalqan-transport-v0.1`, HEAD `863b8d623e76771f15714736d18bca380cd75d74` (3 коммита: `697c313`, `777a835`, `863b8d6`).
 **Файлы:** `internal/qazwireexp/prefix.go` (81 строка), `internal/qazwireexp/prefix_test.go` (72), `docs/qazwire/M1_BOUNDARY_SCAFFOLD.md` (45).
+**Примечание:** во время R2 в ветку PR #3 добавлены коммиты `e89c8f6` и `3c0d823` — только документы evidence (результаты со слов оператора). Код `internal/qazwireexp/*` не менялся, выводы этого review к нему применимы.
 **Код PR #3 аудитором не изменялся.** Проверки выполнены в отдельном detached worktree и во временном модуле вне репозитория.
 **Дата:** 2026-11-02.
 
