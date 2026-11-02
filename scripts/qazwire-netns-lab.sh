@@ -40,7 +40,7 @@ cleanup() {
     printf '\nFAIL: QazWire M0 namespace test (exit=%s)\n' "$rc" >&2
     for log in "$TMP/a.log" "$TMP/b.log"; do
       if [[ -f "$log" ]]; then
-        printf '--- %s (last 15 lines) ---\n' "$log" >&2
+        printf -- '--- %s (last 15 lines) ---\n' "$log" >&2
         tail -n 15 "$log" >&2
       fi
     done
