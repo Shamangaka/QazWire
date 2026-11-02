@@ -22,12 +22,32 @@ const (
 // There is currently no enabled cryptographic profile.
 type ProfileID uint8
 
-// Prefix represents only the first four bytes of an experimental packet.
-// Successful parsing does NOT authenticate, decrypt, or accept a packet.
-type Prefix struct {
-	Type    MessageType
-	Profile ProfileID
+// PrefixParser binds the expected draft profile at construction time.
+// Future device integration MUST construct it ONCE from trusted configuration,
+// not recreate it using the profile ID from an untrusted network packet.
+type PrefixParser struct {
+	expected ProfileID
 }
+
+// NewPrefixParser validates trusted configuration before parsing any packets.
+// A known draft profile is NOT permission to enable cryptography.
+func NewPrefixParser(profile ProfileID) (*PrefixParser, error) {
+	if _, err := DraftProfile(profile); err != nil {
+		return nil, err
+	}
+	return &PrefixParser{expected: profile}, nil
+}
+
+// UnauthenticatedPrefix is ONLY a syntax-checked four-byte prefix.
+// Its unexported fields distinguish it from any future authenticated
+// transport packet; only the future audited crypto Open may authenticate.
+type UnauthenticatedPrefix struct {
+	messageType MessageType
+	profile     ProfileID
+}
+
+func (p UnauthenticatedPrefix) Type() MessageType  { return p.messageType }
+func (p UnauthenticatedPrefix) Profile() ProfileID { return p.profile }
 
 var (
 	ErrShortPrefix     = errors.New("qazwireexp: truncated protocol prefix")
@@ -40,42 +60,40 @@ var (
 	ErrNoApprovedSuite = errors.New("qazwireexp: no reviewed transport suite is available")
 )
 
-// ParsePrefix performs only public-field syntax validation.
-// The protocol constants are a draft; do not wire this function into a
-// production packet path before a complete suite and security review exist.
-func ParsePrefix(packet []byte, expected ProfileID) (Prefix, error) {
+// Parse checks only public prefix syntax, NOT full packet length, MAC or
+// encryption. Errors must never be reflected to remote peers as an oracle.
+func (p *PrefixParser) Parse(packet []byte) (UnauthenticatedPrefix, error) {
+	if p == nil {
+		return UnauthenticatedPrefix{}, ErrInvalidProfile
+	}
 	if len(packet) < 4 {
-		return Prefix{}, ErrShortPrefix
+		return UnauthenticatedPrefix{}, ErrShortPrefix
 	}
 
 	kind := MessageType(packet[0])
 	switch kind {
 	case 0x01, 0x02, 0x03, 0x04:
-		return Prefix{}, ErrLegacyProtocol
+		return UnauthenticatedPrefix{}, ErrLegacyProtocol
 	case MessageInitiation, MessageResponse, MessageCookieReply, MessageTransport:
 		// These codes are provisional. Only syntax is checked below.
 	default:
-		return Prefix{}, ErrUnknownType
+		return UnauthenticatedPrefix{}, ErrUnknownType
 	}
 
-	if expected == 0 || packet[1] == 0 {
-		return Prefix{}, ErrInvalidProfile
+	if packet[1] == 0 {
+		return UnauthenticatedPrefix{}, ErrInvalidProfile
 	}
-	// Only draft profile IDs 1 and 2 are recognized; neither is operational.
-	if expected != 1 && expected != 2 {
-		return Prefix{}, ErrUnknownProfile
-	}
-	if ProfileID(packet[1]) != expected {
-		return Prefix{}, ErrProfileMismatch
+	if ProfileID(packet[1]) != p.expected {
+		return UnauthenticatedPrefix{}, ErrProfileMismatch
 	}
 	if packet[2] != 0 || packet[3] != 0 {
-		return Prefix{}, ErrReservedNonzero
+		return UnauthenticatedPrefix{}, ErrReservedNonzero
 	}
 
-	return Prefix{Type: kind, Profile: expected}, nil
+	return UnauthenticatedPrefix{messageType: kind, profile: p.expected}, nil
 }
 
-// RequireApprovedSuite is an explicit fail-closed gate. Until a real,
-// independently reviewed transport implementation is integrated, it MUST
-// refuse every profile, including those for which ParsePrefix succeeds.
+// RequireApprovedSuite is a legacy research scaffold check, not a security
+// boundary. Only ResolveCryptoProvider can resolve a transport provider,
+// and currently it refuses every candidate; no provider is registered.
 func RequireApprovedSuite(_ ProfileID) error { return ErrNoApprovedSuite }
