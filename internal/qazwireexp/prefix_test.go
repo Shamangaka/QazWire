@@ -24,9 +24,13 @@ func TestPrefixParserRejectsInvalidConfig(t *testing.T) {
 func TestPrefixParserValidAndCrossProfile(t *testing.T) {
 	for _, id := range []ProfileID{1, 2} {
 		parser, err := NewPrefixParser(id)
-		if err != nil { t.Fatal(err) }
-		other, err := NewPrefixParser(3-id)
-		if err != nil { t.Fatal(err) }
+		if err != nil {
+			t.Fatal(err)
+		}
+		other, err := NewPrefixParser(3 - id)
+		if err != nil {
+			t.Fatal(err)
+		}
 		for kind := MessageInitiation; kind <= MessageTransport; kind++ {
 			packet := []byte{byte(kind), byte(id), 0, 0}
 			got, err := parser.Parse(packet)
@@ -43,9 +47,9 @@ func TestPrefixParserValidAndCrossProfile(t *testing.T) {
 func TestPrefixParserRejectsMalformed(t *testing.T) {
 	parser, _ := NewPrefixParser(1)
 	cases := []struct {
-		name string
+		name   string
 		packet []byte
-		want error
+		want   error
 	}{
 		{"truncated", []byte{0x14, 1, 0}, ErrShortPrefix},
 		{"legacy initiation", []byte{1, 0, 0, 0}, ErrLegacyProtocol},
@@ -57,45 +61,47 @@ func TestPrefixParserRejectsMalformed(t *testing.T) {
 		{"reserved byte 3", []byte{0x14, 1, 0, 1}, ErrReservedNonzero},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name,func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			got, err := parser.Parse(tc.packet)
-			if !errors.Is(err,tc.want) || got != (UnauthenticatedPrefix{}) {
-				t.Fatalf("Parse(%x): result %+v error %v, wanted %v",tc.packet,got,err,tc.want)
+			if !errors.Is(err, tc.want) || got != (UnauthenticatedPrefix{}) {
+				t.Fatalf("Parse(%x): result %+v error %v, wanted %v", tc.packet, got, err, tc.want)
 			}
 		})
 	}
 }
 
 func TestProfilesCannotEnableCrypto(t *testing.T) {
-	for id:=0;id<256;id++ {
-		if !errors.Is(RequireApprovedSuite(ProfileID(id)),ErrNoApprovedSuite) {
-			t.Fatalf("profile %d unexpectedly became operational",id)
+	for id := 0; id < 256; id++ {
+		if !errors.Is(RequireApprovedSuite(ProfileID(id)), ErrNoApprovedSuite) {
+			t.Fatalf("profile %d unexpectedly became operational", id)
 		}
 	}
 }
 
 func FuzzParsePrefix(f *testing.F) {
 	for _, packet := range [][]byte{
-		{}, {1,0,0,0},{4,0,0,0},{0x14,1,0,0},{0x14,1,1,0},{0x14,2,0,0},
+		{}, {1, 0, 0, 0}, {4, 0, 0, 0}, {0x14, 1, 0, 0}, {0x14, 1, 1, 0}, {0x14, 2, 0, 0},
 	} {
-		f.Add(packet,uint8(1))
+		f.Add(packet, uint8(1))
 	}
-	f.Add([]byte{0x14,2,0,0},uint8(2))
+	f.Add([]byte{0x14, 2, 0, 0}, uint8(2))
 	f.Fuzz(func(t *testing.T, packet []byte, inputProfile uint8) {
-		profile := ProfileID(1 + inputProfile % 2)
+		profile := ProfileID(1 + inputProfile%2)
 		parser, err := NewPrefixParser(profile)
-		if err != nil { t.Fatal(err) }
+		if err != nil {
+			t.Fatal(err)
+		}
 		got, err := parser.Parse(packet)
 		if err == nil {
-			if len(packet)<4 || packet[0]<0x11 || packet[0]>0x14 ||
-			   packet[1]!=byte(profile) || packet[2]!=0 || packet[3]!=0 {
-				t.Fatalf("accepted malformed prefix %x, configured %d",packet,profile)
+			if len(packet) < 4 || packet[0] < 0x11 || packet[0] > 0x14 ||
+				packet[1] != byte(profile) || packet[2] != 0 || packet[3] != 0 {
+				t.Fatalf("accepted malformed prefix %x, configured %d", packet, profile)
 			}
-			if got.Type()!=MessageType(packet[0]) || got.Profile()!=profile {
-				t.Fatalf("inconsistent parsed result: %+v",got)
+			if got.Type() != MessageType(packet[0]) || got.Profile() != profile {
+				t.Fatalf("inconsistent parsed result: %+v", got)
 			}
 		} else if got != (UnauthenticatedPrefix{}) {
-			t.Fatalf("partial data returned on error: %+v",got)
+			t.Fatalf("partial data returned on error: %+v", got)
 		}
 	})
 }
