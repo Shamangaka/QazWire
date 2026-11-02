@@ -18,9 +18,9 @@ const (
 )
 
 var (
-	errClosed     = errors.New("keylab: key is closing")
-	errExhausted  = errors.New("keylab: synthetic counter exhausted")
-	errInvalid    = errors.New("keylab: invalid synthetic key")
+	errClosed    = errors.New("keylab: key is closing")
+	errExhausted = errors.New("keylab: synthetic counter exhausted")
+	errInvalid   = errors.New("keylab: invalid synthetic key")
 	errDrainWait = errors.New("keylab: drain deadline expired; escalate isolation, do not wipe in-use key")
 )
 
