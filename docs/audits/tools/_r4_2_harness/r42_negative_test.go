@@ -55,6 +55,30 @@ func TestR42_01_ProviderMaterialAliasMustNotBeAccepted(t *testing.T) {
 	}
 }
 
+// R42-01b: wiping the first logical key actively corrupts the live second
+// session, because their distinct providers share the same backing material.
+// This is an isolated synthetic demonstration of the ownership contract.
+func TestR42_01b_WipingOneProviderBreaksAnother(t *testing.T) {
+	material := &r42SharedMaterial{}
+	first, err := newSession(&r42Provider{shared: material}, &r42Sink{}, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := newSession(&r42Provider{shared: material}, &r42Sink{}, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first.beginEmergency()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := first.awaitDrained(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := second.prepare([]byte("synthetic live traffic")); err != nil {
+		t.Fatalf("R42-01b first wipe invalidated second session: %v", err)
+	}
+}
+
 // R42-02: s.keys[:0] filters its visible slice but does not clear the tail of
 // the backing array. The GC can keep references to retired providers via that
 // hidden capacity. We intentionally hold wipe() so keys accumulate first.
