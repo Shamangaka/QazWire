@@ -72,6 +72,9 @@ func (g *syntheticGate) count() uint64 {
 // failure/EOF must be treated as DENY by every lab caller.
 func serveGate(ln *net.UnixListener, gate *syntheticGate, stop <-chan struct{}) {
 	var wg sync.WaitGroup
+	// Prevent local socket floods from growing unbounded Go goroutines.
+	// Saturation denies rather than queuing unbounded requests.
+	slots := make(chan struct{}, 16)
 	defer wg.Wait()
 	for {
 		if err := ln.SetDeadline(time.Now().Add(100 * time.Millisecond)); err != nil {
@@ -89,9 +92,16 @@ func serveGate(ln *net.UnixListener, gate *syntheticGate, stop <-chan struct{}) 
 				return
 			}
 		}
-		wg.Add(1)
+		select {
+		case slots <- struct{}{}:
+			wg.Add(1)
+		default:
+			_ = conn.Close()
+			continue
+		}
 		go func(c *net.UnixConn) {
 			defer wg.Done()
+			defer func() { <-slots }()
 			defer c.Close()
 			_ = c.SetDeadline(time.Now().Add(250 * time.Millisecond))
 			uid, err := peerUIDGate(c)
