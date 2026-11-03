@@ -1,0 +1,15 @@
+diff --git a/internal/qazwireexp/sessionlab/session.go b/internal/qazwireexp/sessionlab/session.go
+--- a/internal/qazwireexp/sessionlab/session.go
++++ b/internal/qazwireexp/sessionlab/session.go
+@@ -446,8 +446,11 @@
+ 		default:
+ 			live = append(live, existing)
+ 		}
+ 	}
++	// Do not keep pruned keys in the backing array beyond s.keys.len.
++	// The session is the sole owner of this slice under s.mu.
++	clear(s.keys[:cap(s.keys)][len(live):])
+ 	fresh := s.newKeyOwned(p, maxTickets)
+ 	s.previous = old
+ 	s.k = fresh
+ 	s.keys = append(live, fresh)
