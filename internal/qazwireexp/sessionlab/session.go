@@ -327,7 +327,7 @@ func (s *session) prepare(payload []byte) (packet, error) {
 	var err error
 	for attempt := 0; attempt < 2; attempt++ {
 		s.mu.RLock()
-		if s.closed {
+		if s.closed || s.faults.Load()&faultWipeFailed != 0 {
 			s.mu.RUnlock()
 			return packet{}, errClosed
 		}
@@ -416,7 +416,7 @@ func (s *session) rotate(p processor, maxTickets uint64) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.closed {
+	if s.closed || s.faults.Load()&faultWipeFailed != 0 {
 		return errClosed
 	}
 	if !p.claim() {
