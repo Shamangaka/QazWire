@@ -46,6 +46,20 @@ cleanup() {
   for ns in "$worker_ns" "$peer_ns"; do
     if sudo -n ip netns list | grep -Eq "^$ns( |$)"; then
       sudo -n ip netns exec "$ns" python3 -B "$helper" terminate-members || status=1
+      # ip netns del only removes the namespace NAME. Wait for members to
+      # actually leave so a hidden process cannot keep a detached netns alive.
+      local empty=0
+      for ((i=0; i<30; i++)); do
+        if [[ -z "$(sudo -n ip netns pids "$ns" 2>/dev/null)" ]]; then
+          empty=1
+          break
+        fi
+        sleep 0.1
+      done
+      if (( empty == 0 )); then
+        echo "CLEANUP_FAILURE: processes still alive inside $ns" >&2
+        status=1
+      fi
     fi
   done
   if (( worker_created )); then
