@@ -1,0 +1,232 @@
+--- a/internal/qazwireexp/sessionlab/session.go
++++ b/internal/qazwireexp/sessionlab/session.go
+@@ -8,6 +8,7 @@
+ import (
+ 	"context"
+ 	"errors"
++	"fmt"
+ 	"reflect"
+ 	"sync"
+ 	"sync/atomic"
+@@ -18,7 +19,8 @@
+ 	finishedFlag  = uint64(1) << 62 // finishing has been CLAIMED, not completed
+ 	poisonFlag    = uint64(1) << 61
+ 	failedFlag    = uint64(1) << 60
+-	referenceMask = failedFlag - 1
++	discardFlag   = uint64(1) << 59 // FIX R41-03: emergency/poison discard outputs; planned retire does not
++	referenceMask = discardFlag - 1
+ )
+ 
+ var (
+@@ -30,8 +32,15 @@
+ 	errProviderFault = errors.New("sessionlab: synthetic provider fault; key poisoned")
+ 	errWipeFailed    = errors.New("sessionlab: synthetic wipe failed; destruction NOT confirmed")
+ 	errTicket        = errors.New("sessionlab: ticket absent, foreign or already spent")
++	// FIX R41-06: distinct, but still errors.Is(err, errDeadline).
++	errWipeUnconfirmed = fmt.Errorf("%w: wipe started but not confirmed", errDeadline)
++	// FIX R41-01: a provider object may back exactly one key generation, ever.
++	errProviderReuse = errors.New("sessionlab: provider object already used by a key generation")
+ )
+ 
++// FIX R41-01: process-wide registry of provider objects ever installed.
++var providersInUse sync.Map
++
+ // Unexported test doubles. Neither process nor wipe provides cryptography.
+ type processor interface {
+ 	process(ticket uint64, payload []byte) ([]byte, error)
+@@ -63,6 +72,7 @@
+ 	state  atomic.Uint64
+ 	done   chan struct{}
+ 	finish func()
++	onFail func() // FIX R41-05: escalation when finish panics (set before publication)
+ }
+ 
+ func newGate(finish func()) *gate { return &gate{done: make(chan struct{}), finish: finish} }
+@@ -107,6 +117,9 @@
+ 				defer func() {
+ 					if recover() != nil {
+ 						g.state.Or(failedFlag)
++						if g.onFail != nil {
++							go g.onFail() // never under the caller's locks
++						}
+ 					}
+ 				}()
+ 				g.finish()
+@@ -124,7 +137,15 @@
+ }
+ 
+ func (g *gate) poison() {
+-	state := g.state.Or(closingFlag|poisonFlag) | closingFlag | poisonFlag
++	state := g.state.Or(closingFlag|discardFlag|poisonFlag) | closingFlag | discardFlag | poisonFlag
++	if state&referenceMask == 0 {
++		g.startFinish()
++	}
++}
++
++// beginDiscard closes admission AND discards in-flight outputs (emergency).
++func (g *gate) beginDiscard() {
++	state := g.state.Or(closingFlag|discardFlag) | closingFlag | discardFlag
+ 	if state&referenceMask == 0 {
+ 		g.startFinish()
+ 	}
+@@ -145,6 +166,9 @@
+ 		}
+ 		return nil
+ 	case <-ctx.Done():
++		if g.state.Load()&finishedFlag != 0 {
++			return errWipeUnconfirmed // FIX R41-06
++		}
+ 		return errDeadline
+ 	}
+ }
+@@ -205,7 +229,10 @@
+ 		return packet{}, err
+ 	}
+ 	result, err := k.p.process(ticket, payload)
+-	if k.gate.state.Load()&closingFlag != 0 {
++	if len(result) > 0 && len(payload) > 0 && &result[0] == &payload[0] {
++		result = append([]byte(nil), result...) // FIX R41-07: never queue the caller's buffer
++	}
++	if k.gate.state.Load()&discardFlag != 0 { // FIX R41-03: planned retire keeps the output
+ 		clear(result)
+ 		return packet{}, errClosed
+ 	}
+@@ -249,23 +276,71 @@
+ 	return true
+ }
+ 
++// FIX R41-02: a provider must be a non-nil pointer, so that wipe() can reach
++// the state that process() uses (a value receiver would erase a copy).
++func validProvider(p processor) bool {
++	if p == nil {
++		return false
++	}
++	r := reflect.ValueOf(p)
++	return r.Kind() == reflect.Pointer && !r.IsNil()
++}
++
++// FIX R41-01: claim the provider object for exactly one generation.
++func claimProvider(p processor) bool {
++	_, loaded := providersInUse.LoadOrStore(p, struct{}{})
++	return !loaded
++}
++
+ func newSession(p processor, w wire, maxTickets uint64) (*session, error) {
+-	if !validDependency(p) || !validDependency(w) || maxTickets == 0 {
++	if !validProvider(p) || !validDependency(w) || maxTickets == 0 {
+ 		return nil, errInvalid
+ 	}
++	if !claimProvider(p) {
++		return nil, errProviderReuse
++	}
++	s := &session{pending: make(map[*packetGuard]packet), e: newEgress(w)}
++	k := s.newKeyLocked(p, maxTickets)
++	s.k, s.keys = k, []*key{k}
++	return s, nil
++}
++
++// newKeyLocked wires the failure escalation of a generation to the session.
++func (s *session) newKeyLocked(p processor, maxTickets uint64) *key {
+ 	k := newKey(p, maxTickets)
+-	return &session{k: k, keys: []*key{k}, pending: make(map[*packetGuard]packet), e: newEgress(w)}, nil
++	k.gate.onFail = s.beginEmergency // FIX R41-05
++	return k
+ }
+ 
+-func (s *session) prepare(payload []byte) (packet, error) {
++// faultState reports poison / wipe failure of any generation (FIX R41-05).
++func (s *session) faultState() (poisoned, wipeFailed bool) {
+ 	s.mu.RLock()
+-	if s.closed {
++	defer s.mu.RUnlock()
++	for _, k := range s.keys {
++		st := k.gate.state.Load()
++		poisoned = poisoned || st&poisonFlag != 0
++		wipeFailed = wipeFailed || st&failedFlag != 0
++	}
++	return
++}
++
++func (s *session) prepare(payload []byte) (packet, error) {
++	var k *key
++	var pkt packet
++	var err error
++	for attempt := 0; attempt < 2; attempt++ { // FIX R41-03: a rotation is not a shutdown
++		s.mu.RLock()
++		if s.closed {
++			s.mu.RUnlock()
++			return packet{}, errClosed
++		}
++		k = s.k
+ 		s.mu.RUnlock()
+-		return packet{}, errClosed
++		pkt, err = k.seal(payload)
++		if !errors.Is(err, errClosed) {
++			break
++		}
+ 	}
+-	k := s.k
+-	s.mu.RUnlock()
+-	pkt, err := k.seal(payload)
+ 	if err != nil {
+ 		if errors.Is(err, errProviderFault) {
+ 			s.beginEmergency()
+@@ -283,6 +358,7 @@
+ 	}
+ 	s.pending[pkt.guard] = pkt
+ 	s.mu.Unlock()
++	pkt.data = nil // FIX R41-07: the queued buffer is owned by the session only
+ 	return pkt, nil
+ }
+ 
+@@ -336,7 +412,7 @@
+ // rotate serializes publishing a new generation with the emergency snapshot.
+ // No new key can be installed once s.closed was set under the same mutex.
+ func (s *session) rotate(p processor, maxTickets uint64) error {
+-	if !validDependency(p) || maxTickets == 0 {
++	if !validProvider(p) || maxTickets == 0 {
+ 		return errInvalid
+ 	}
+ 	s.mu.Lock()
+@@ -344,10 +420,30 @@
+ 	if s.closed {
+ 		return errClosed
+ 	}
++	if !claimProvider(p) {
++		return errProviderReuse
++	}
+ 	old := s.k
+-	fresh := newKey(p, maxTickets)
++	// FIX R41-04: like WireGuard's previous keypair, only ONE retired generation
++	// may keep queued packets; older queued packets are discarded now.
++	for guard, queued := range s.pending {
++		if guard.owner != old && guard.used.CompareAndSwap(false, true) {
++			clear(queued.data)
++			delete(s.pending, guard)
++			guard.owner.gate.leave()
++		}
++	}
++	live := s.keys[:0]
++	for _, k := range s.keys {
++		select {
++		case <-k.gate.done: // fully finished generations are pruned
++		default:
++			live = append(live, k)
++		}
++	}
++	fresh := s.newKeyLocked(p, maxTickets)
+ 	s.k = fresh
+-	s.keys = append(s.keys, fresh)
++	s.keys = append(live, fresh)
+ 	old.gate.beginClose()
+ 	return nil
+ }
+@@ -367,7 +463,7 @@
+ 		delete(s.pending, guard)
+ 	}
+ 	for _, k := range s.keys {
+-		k.gate.beginClose()
++		k.gate.beginDiscard()
+ 	}
+ 	s.mu.Unlock()
+ }

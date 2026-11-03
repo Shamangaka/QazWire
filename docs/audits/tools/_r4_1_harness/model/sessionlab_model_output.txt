@@ -1,0 +1,194 @@
+
+### M-1: workers (dispatch, discard) + rotate + emergency + awaitDrained
+states explored: 160796, terminal states: 72
+  safety refs_underflow                : holds
+  safety wipe_with_outstanding_lease   : holds
+  safety process_on_wiped_provider     : holds
+  safety process_after_key_wipe        : holds
+  safety send_after_drain_confirmed    : holds
+  safety send_with_wiped_key           : holds
+  safety dup_send                      : holds
+  safety dup_ticket                    : holds
+  deadlock (terminal state with live threads): none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_session_open        : REACHABLE
+  observation packet_left_pending_after_errclosed : REACHABLE
+
+  shortest interleaving for errclosed_while_session_open:
+     1. W0: prepare: k := s.k (k0)
+     2. R: rotate: lock, install k1
+     3. R: rotate: k0.beginClose
+     4. W0: seal: enter refused -> errClosed
+
+  shortest interleaving for packet_left_pending_after_errclosed:
+     1. W0: prepare: k := s.k (k0)
+     2. W0: seal: gate.enter
+     3. W0: reserve: open, load next
+     4. W0: reserve: CAS next -> ticket 0
+     5. W0: reserve: ticket valid
+     6. W0: process(): enter
+     7. W0: process(): return
+     8. W0: seal: lease transferred to packet
+     9. W0: prepare: pending[guard] = pkt
+    10. E: emergency: egress beginClose
+    11. W0: dispatch: egress closed -> errClosed
+
+### M-2: workers (dispatch, dispatch) + rotate + emergency + awaitDrained
+states explored: 214018, terminal states: 118
+  safety refs_underflow                : holds
+  safety wipe_with_outstanding_lease   : holds
+  safety process_on_wiped_provider     : holds
+  safety process_after_key_wipe        : holds
+  safety send_after_drain_confirmed    : holds
+  safety send_with_wiped_key           : holds
+  safety dup_send                      : holds
+  safety dup_ticket                    : holds
+  deadlock (terminal state with live threads): none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_session_open        : REACHABLE
+  observation packet_left_pending_after_errclosed : REACHABLE
+
+  shortest interleaving for errclosed_while_session_open:
+     1. W0: prepare: k := s.k (k0)
+     2. R: rotate: lock, install k1
+     3. R: rotate: k0.beginClose
+     4. W0: seal: enter refused -> errClosed
+
+  shortest interleaving for packet_left_pending_after_errclosed:
+     1. W0: prepare: k := s.k (k0)
+     2. W0: seal: gate.enter
+     3. W0: reserve: open, load next
+     4. W0: reserve: CAS next -> ticket 0
+     5. W0: reserve: ticket valid
+     6. W0: process(): enter
+     7. W0: process(): return
+     8. W0: seal: lease transferred to packet
+     9. W0: prepare: pending[guard] = pkt
+    10. E: emergency: egress beginClose
+    11. W0: dispatch: egress closed -> errClosed
+
+### M-3: workers (dispatch, discard) + rotate, no emergency
+states explored: 2735, terminal states: 12
+  safety refs_underflow                : holds
+  safety wipe_with_outstanding_lease   : holds
+  safety process_on_wiped_provider     : holds
+  safety process_after_key_wipe        : holds
+  safety send_after_drain_confirmed    : holds
+  safety send_with_wiped_key           : holds
+  safety dup_send                      : holds
+  safety dup_ticket                    : holds
+  deadlock (terminal state with live threads): none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_session_open        : REACHABLE
+  observation packet_left_pending_after_errclosed : unreachable
+
+  shortest interleaving for errclosed_while_session_open:
+     1. W0: prepare: k := s.k (k0)
+     2. R: rotate: lock, install k1
+     3. R: rotate: k0.beginClose
+     4. W0: seal: enter refused -> errClosed
+
+### M-4: leaky worker + rotate, no emergency (R41-04)
+states explored: 2694, terminal states: 15
+  safety refs_underflow                : holds
+  safety wipe_with_outstanding_lease   : holds
+  safety process_on_wiped_provider     : holds
+  safety process_after_key_wipe        : holds
+  safety send_after_drain_confirmed    : holds
+  safety send_with_wiped_key           : holds
+  safety dup_send                      : holds
+  safety dup_ticket                    : holds
+  deadlock (terminal state with live threads): none
+  final: retired key never wiped (no emergency): VIOLATED
+  observation errclosed_while_session_open        : REACHABLE
+  observation packet_left_pending_after_errclosed : unreachable
+
+  shortest interleaving for final: retired key never wiped (no emergency):
+     1. W0: prepare: k := s.k (k0)
+     2. W0: seal: gate.enter
+     3. W0: reserve: open, load next
+     4. W0: reserve: CAS next -> ticket 0
+     5. W0: reserve: ticket valid
+     6. W0: process(): enter
+     7. W0: process(): return
+     8. W0: seal: lease transferred to packet
+     9. W0: prepare: pending[guard] = pkt
+    10. W0: caller drops the packet (no dispatch, no discard)
+    11. W1: prepare: k := s.k (k0)
+    12. R: rotate: lock, install k1
+    13. R: rotate: k0.beginClose
+    14. W1: seal: enter refused -> errClosed
+    15. R: rotate: unlock
+
+  shortest interleaving for errclosed_while_session_open:
+     1. W0: prepare: k := s.k (k0)
+     2. R: rotate: lock, install k1
+     3. R: rotate: k0.beginClose
+     4. W0: seal: enter refused -> errClosed
+
+### M-5: rotate re-uses the SAME provider object (R41-01)
+states explored: 4639, terminal states: 20
+  safety refs_underflow                : holds
+  safety wipe_with_outstanding_lease   : holds
+  safety process_on_wiped_provider     : VIOLATED
+  safety process_after_key_wipe        : holds
+  safety send_after_drain_confirmed    : holds
+  safety send_with_wiped_key           : holds
+  safety dup_send                      : holds
+  safety dup_ticket                    : holds
+  deadlock (terminal state with live threads): none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_session_open        : REACHABLE
+  observation packet_left_pending_after_errclosed : unreachable
+
+  shortest interleaving for process_on_wiped_provider:
+     1. R: rotate: lock, install k1
+     2. R: rotate: k0.beginClose
+     3. R: rotate: unlock
+     4. W0: prepare: k := s.k (k1)
+     5. W0: seal: gate.enter
+     6. W0: reserve: open, load next
+     7. W0: reserve: CAS next -> ticket 0
+     8. W0: reserve: ticket valid
+     9. Fk0: finish(k0)
+    10. W0: process(): enter
+
+  shortest interleaving for errclosed_while_session_open:
+     1. W0: prepare: k := s.k (k0)
+     2. R: rotate: lock, install k1
+     3. R: rotate: k0.beginClose
+     4. W0: seal: enter refused -> errClosed
+
+### M-6: three workers (dispatch, dispatch, discard) + rotate + emergency
+states explored: 1905761, terminal states: 100
+  safety refs_underflow                : holds
+  safety wipe_with_outstanding_lease   : holds
+  safety process_on_wiped_provider     : holds
+  safety process_after_key_wipe        : holds
+  safety send_after_drain_confirmed    : holds
+  safety send_with_wiped_key           : holds
+  safety dup_send                      : holds
+  safety dup_ticket                    : holds
+  deadlock (terminal state with live threads): none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_session_open        : REACHABLE
+  observation packet_left_pending_after_errclosed : REACHABLE
+
+  shortest interleaving for errclosed_while_session_open:
+     1. W0: prepare: k := s.k (k0)
+     2. R: rotate: lock, install k1
+     3. R: rotate: k0.beginClose
+     4. W0: seal: enter refused -> errClosed
+
+  shortest interleaving for packet_left_pending_after_errclosed:
+     1. W0: prepare: k := s.k (k0)
+     2. W0: seal: gate.enter
+     3. W0: reserve: open, load next
+     4. W0: reserve: CAS next -> ticket 0
+     5. W0: reserve: ticket valid
+     6. W0: process(): enter
+     7. W0: process(): return
+     8. W0: seal: lease transferred to packet
+     9. W0: prepare: pending[guard] = pkt
+    10. E: emergency: egress beginClose
+    11. W0: dispatch: egress closed -> errClosed

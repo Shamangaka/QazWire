@@ -208,3 +208,7 @@
 ## 15. Дополнения ревизии R4 (`QAZWIRE_AUDIT_R4.md` §7.8)
 
 Полная матрица T-KLM-13…30 и T-REG-01…06 — в `QAZWIRE_AUDIT_R4.md` §7.8. Тесты T-KLM-13…23 и T-REG-03 **выполнены аудитором** на эталонной модели `tools/_r4_harness/klm15ref` (PASS, `-race`). Остальные — PLAN ONLY, требования к реализации M1.5. Демонстрации дефектов M1.4 (R4-KLM-01…09) — `tools/_r4_harness/keylab_blackbox` и `keylab_instrumented`; исчерпывающая проверка модели — `tools/_r4_harness/model`.
+
+## 16. Дополнения ревизии R4.1 (`QAZWIRE_AUDIT_R4_1.md` §10.2)
+
+Покрытие T-KLM-13…30 и T-REG-01…06 реализацией PR #11 (`f5e078c`) — `QAZWIRE_AUDIT_R4_1.md` §10.2. Новые аудиторские проверки — `tools/_r4_1_harness`: демонстрации R41-01…07 на неизменённом коде, модель реализации `sessionlab_model.py` (T-KLM-27 для M1.5.1), тесты минимального исправления и `racechk` (ограничение `-race` для `clear()`).
