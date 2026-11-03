@@ -1,0 +1,61 @@
+name: QazWire M1.7 synthetic process IPC laboratory
+on:
+  push:
+    branches:
+      - feature/m1-7-synthetic-klm-process
+  pull_request:
+    branches:
+      - feature/m1-6-2-r5-backlog-remediation
+
+permissions:
+  contents: read
+
+jobs:
+  m17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout source without stored credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Print immutable revision and toolchain
+        run: |
+          go version
+          git rev-parse HEAD
+
+      - name: Format and whitespace
+        run: |
+          set -euo pipefail
+          files="$(gofmt -l internal/qazwireexp/klm16/*.go internal/qazwireexp/staged16/*.go internal/qazwireexp/klmproc17/*.go cmd/qazwire-klmproc-lab/*.go)"
+          if [ -n "$files" ]; then
+            printf 'NEEDS_GO_FMT:\\n%s\\n' "$files"
+            gofmt -w internal/qazwireexp/klmproc17/*.go cmd/qazwire-klmproc-lab/*.go
+            git diff -- internal/qazwireexp/klmproc17 cmd/qazwire-klmproc-lab
+            exit 1
+          fi
+          git diff --check
+
+      - name: Cross-process Unix IPC, protocol and socket policy 10x race
+        run: go test -tags qazwire_exp -race -count=10 -v ./internal/qazwireexp/klmproc17
+
+      - name: Build standalone synthetic worker
+        run: go build -tags qazwire_exp -o /tmp/qazwire-klmproc-lab ./cmd/qazwire-klmproc-lab
+
+      - name: M1.6.2 regression (including R5 queue fix)
+        run: |
+          go test -tags qazwire_exp -race -count=10 ./internal/qazwireexp/klm16 ./internal/qazwireexp/staged16
+          python3 -I docs/qazwire/tools/r5_klm16_model.py --patched K3 K4 K6 > /tmp/m17-model.txt
+          cat /tmp/m17-model.txt
+          ! grep -q VIOLATED /tmp/m17-model.txt
+
+      - name: Full tagged module tests and race detector
+        run: |
+          go test -tags qazwire_exp -count=1 ./...
+          go test -tags qazwire_exp -race -count=1 ./...
+
+      - name: Static vet and upstream untagged regression
+        run: |
+          go vet -tags qazwire_exp ./...
+          go test -count=1 ./...
