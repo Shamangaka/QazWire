@@ -1,0 +1,74 @@
+name: QazWire M1.6.2 R5 remediation (synthetic only)
+on:
+  push:
+    branches:
+      - feature/m1-6-2-r5-backlog-remediation
+  pull_request:
+    branches:
+      - feature/m1-6-1-ownership-concurrency-stage-d
+
+permissions:
+  contents: read
+
+jobs:
+  m162:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact revision without persisting credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Identify revision and toolchain
+        run: |
+          go version
+          python3 --version
+          git rev-parse HEAD
+
+      - name: Check formatting and whitespace
+        run: |
+          set -euo pipefail
+          test -z "$(gofmt -l internal/qazwireexp/klm16/*.go internal/qazwireexp/staged16/*.go)"
+          git diff --check
+
+      - name: Independent R5 model - baseline regression witness and patched safety
+        run: |
+          set -euo pipefail
+          MODEL=docs/qazwire/tools/r5_klm16_model.py
+          python3 -I "$MODEL" K3 > /tmp/r5-baseline.txt
+          grep -E '^  safety backlog_without_inflight *: VIOLATED$' /tmp/r5-baseline.txt
+          python3 -I "$MODEL" --patched K3 K4 K6 > /tmp/r5-patched.txt
+          cat /tmp/r5-patched.txt
+          if grep -q 'VIOLATED' /tmp/r5-patched.txt; then
+            echo 'FAIL: patched model violated an R5 property'
+            exit 1
+          fi
+          python3 -I "$MODEL" --mutants admission_ignores_reserved > /tmp/r5-mutant.txt
+          grep -q 'KILLED by' /tmp/r5-mutant.txt
+          python3 docs/qazwire/tools/m161_bounded_model.py
+
+      - name: R5-01 and Stage-D laboratory regression with race detector 10x
+        run: |
+          go test -tags qazwire_exp -race -count=10 \
+            ./internal/qazwireexp/klm16 ./internal/qazwireexp/staged16
+
+      - name: Negative compile test of public sealed API
+        run: |
+          set -euo pipefail
+          if go test -tags qazwire_exp ./internal/qazwireexp/klm16/testdata/negative > /tmp/negative.log 2>&1; then
+            echo 'ERROR: forbidden external API constructs compiled'
+            exit 1
+          fi
+          grep -q 'cannot indirect owner' /tmp/negative.log
+          grep -q 'cannot refer to unexported field state' /tmp/negative.log
+
+      - name: Full tagged tests and race detector
+        run: |
+          go test -tags qazwire_exp -count=1 ./...
+          go test -tags qazwire_exp -race -count=1 ./...
+
+      - name: Static vet and upstream untagged baseline
+        run: |
+          go vet -tags qazwire_exp ./...
+          go test -count=1 ./...
