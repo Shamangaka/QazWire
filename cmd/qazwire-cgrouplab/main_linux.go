@@ -314,8 +314,14 @@ func workAsParent(dir string) error {
 	}
 	// Intentionally no Pdeathsig for child: a detached setsid descendant
 	// must be killed by the cgroup mechanism, NOT via parent-death signal.
+	// The private pulse is a SYNTHETIC liveness hint, not an authenticated
+	// heartbeat. It deliberately stops changing when this worker is SIGSTOPed.
+	pulse := filepath.Join(dir, "pulse")
 	for {
-		time.Sleep(time.Second)
+		if err := os.WriteFile(pulse, []byte("synthetic-alive"), 0600); err != nil {
+			return err
+		}
+		time.Sleep(40 * time.Millisecond)
 	}
 }
 
@@ -325,6 +331,33 @@ func main() {
 	}
 	if len(os.Args) >= 2 {
 		switch os.Args[1] {
+		case "watch":
+			if len(os.Args) != 7 {
+				die(errors.New("usage: watch <cgroup> <unit> <mainpid> <setsidpid> <private-dir>"))
+			}
+			parent, err := strconv.Atoi(os.Args[4])
+			if err != nil {
+				die(err)
+			}
+			child, err := strconv.Atoi(os.Args[5])
+			if err != nil {
+				die(err)
+			}
+			if err := runWatch(os.Args[2], os.Args[3], parent, child, os.Args[6]); err != nil {
+				die(err)
+			}
+			return
+		case "gate":
+			if len(os.Args) != 3 {
+				die(errors.New("usage: gate <absolute-watch-gate-socket>"))
+			}
+			allowed, err := gateRequest(os.Args[2])
+			if err != nil || !allowed {
+				fmt.Println("A0_SOFT_DENY")
+				os.Exit(1)
+			}
+			fmt.Println("A0_SOFT_ALLOW")
+			return
 		case "escaped":
 			for {
 				time.Sleep(time.Second)
@@ -366,5 +399,5 @@ func main() {
 			return
 		}
 	}
-	die(errors.New("usage: <parent|escaped|kill>; SYNTHETIC / RESEARCH ONLY"))
+	die(errors.New("usage: <parent|escaped|kill|watch|gate>; SYNTHETIC / RESEARCH ONLY"))
 }

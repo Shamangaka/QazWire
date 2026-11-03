@@ -1,0 +1,68 @@
+name: QazWire M1.7.2a synthetic watchdog and soft A0 gate
+on:
+  push:
+    branches:
+      - feature/m1-7-2-watchdog-a0-synthetic
+  pull_request:
+    branches:
+      - feature/m1-7-1-cgroup-v2-lab
+
+permissions:
+  contents: read
+
+jobs:
+  watchdog-lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Record version and SHA
+        run: |
+          git rev-parse HEAD
+          go version
+
+      - name: Formatting and syntax
+        run: |
+          set -euo pipefail
+          dirty="$(gofmt -l cmd/qazwire-cgrouplab/*.go)"
+          if [ -n "$dirty" ]; then
+            echo "gofmt drift:"
+            gofmt -w cmd/qazwire-cgrouplab/*.go
+            git diff -- cmd/qazwire-cgrouplab
+            exit 1
+          fi
+          bash -n scripts/qazwire-m172-watchdog-lab.sh
+          bash -n scripts/qazwire-m171-cgroup-lab.sh
+          git diff --check
+
+      - name: Watchdog pure state machine and pidfd checks ten times under race
+        run: go test -tags qazwire_exp -race -count=10 ./cmd/qazwire-cgrouplab
+
+      - name: Build synthetic worker and watchdog modes
+        run: go build -tags qazwire_exp -o /tmp/qazwire-cgrouplab ./cmd/qazwire-cgrouplab
+
+      - name: Prior M1.7.0 M1.6.2 regressions
+        run: |
+          go test -tags qazwire_exp -race -count=10 ./internal/qazwireexp/klmproc17 ./internal/qazwireexp/klm16 ./internal/qazwireexp/staged16
+          python3 -I docs/qazwire/tools/r5_klm16_model.py --patched K3 K4 K6 > /tmp/r5-model.txt
+          cat /tmp/r5-model.txt
+          ! grep -q VIOLATED /tmp/r5-model.txt
+
+      - name: Full tagged test and race
+        run: |
+          go test -tags qazwire_exp -count=1 ./...
+          go test -tags qazwire_exp -race -count=1 ./...
+
+      - name: Vet and untagged upstream
+        run: |
+          go vet -tags qazwire_exp ./...
+          go test -count=1 ./...
+
+      - name: State actual host-test limitation
+        run: |
+          echo "This workflow does not manipulate user systemd services, cgroups, nftables or real traffic."
+          echo "Owner Ubuntu host must run scripts/qazwire-m172-watchdog-lab.sh separately."
