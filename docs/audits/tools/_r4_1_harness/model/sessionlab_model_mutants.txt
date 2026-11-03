@@ -1,0 +1,18 @@
+### MUTANT early_key_leave on M-1
+states explored: 177026, terminal states: 116
+  safety wipe_with_outstanding_lease   : VIOLATED
+  safety send_with_wiped_key           : VIOLATED
+  => mutant early_key_leave: KILLED
+### MUTANT no_egress_gate on M-1
+states explored: 180110, terminal states: 61
+  safety send_after_drain_confirmed    : VIOLATED
+  => mutant no_egress_gate: KILLED
+### MUTANT no_flush on M-1
+states explored: 136709, terminal states: 74
+  final: pending not empty after emergency: VIOLATED
+  final: gate not drained/finished after emergency: VIOLATED
+  => mutant no_flush: KILLED
+### MUTANT rotate_ignores_closed on M-1
+states explored: 170795, terminal states: 72
+  final: gate not drained/finished after emergency: VIOLATED
+  => mutant rotate_ignores_closed: KILLED
