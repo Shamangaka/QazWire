@@ -60,7 +60,8 @@ class TestM172BStaticContract(unittest.TestCase):
         self.assertNotIn("sudo nft add table", meaningful)
         self.assertNotIn("sudo ip route add default", meaningful)
         self.assertIn('--reuid "$uid" --regid "$gid" --clear-groups', text)
-        self.assertIn('kill-refresher --pid "$watch_pid"', text)\n        self.assertNotIn("sudo -n kill -KILL", text)
+        self.assertIn('kill-refresher --pid "$watch_pid"', text)
+        self.assertNotIn("sudo -n kill -KILL", text)
 
 
 if __name__ == "__main__":
