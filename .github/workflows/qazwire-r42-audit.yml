@@ -1,0 +1,34 @@
+name: QazWire R4.2 bounded model and negative audit harness
+on:
+  push:
+    branches:
+      - audit/qazwire-protocol-r4-2
+  pull_request:
+    branches:
+      - audit/qazwire-protocol-r4-1
+
+permissions:
+  contents: read
+
+jobs:
+  r42-evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout audit branch (pinned action)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Bounded model and mutation controls
+        run: |
+          set -euo pipefail
+          python3 docs/audits/tools/_r4_2_harness/m152_model.py
+
+      - name: Reproduce negative findings against exact owner commit
+        run: |
+          set -euo pipefail
+          go version
+          git fetch origin             +refs/heads/feature/m1-5-2-r41-owned-providers:refs/remotes/origin/feature/m1-5-2-r41-owned-providers
+          bash docs/audits/tools/_r4_2_harness/run_r42.sh "$PWD"
