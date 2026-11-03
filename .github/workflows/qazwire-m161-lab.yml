@@ -32,6 +32,9 @@ jobs:
           fi
           git diff --check
 
+      - name: Two-worker bounded state model and mutations
+        run: python3 docs/qazwire/tools/m161_bounded_model.py
+
       - name: Deterministic M1.6.1 and Stage-D tests 10x race
         run: |
           go test -tags qazwire_exp -race -count=10 \
