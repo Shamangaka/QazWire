@@ -1,0 +1,26 @@
+# M1.7.2b RESEARCH-ONLY network namespace policy.
+# Apply ONLY with: sudo ip netns exec <DEDICATED_LAB_WORKER_NS> nft -f <this-file>
+# NEVER load into the host network namespace. NEVER flush ruleset.
+#
+# The nftables rules are created before the lab veth interfaces go UP.
+# The kernel default OUTPUT policy is DROP. Only UDP to the private peer
+# 198.18.27.2:44000 is temporarily permitted via an expiring set element.
+# Even with a lease active, other ports and direct arbitrary sockets are denied.
+table inet qw_a0 {
+    set allow_dst {
+        type ipv4_addr
+        flags timeout
+        timeout 2s
+        size 1
+    }
+
+    chain output_a0 {
+        type filter hook output priority 0; policy drop;
+        ip saddr 198.18.27.1 ip daddr @allow_dst udp dport 44000 counter accept
+    }
+
+    chain input_a0 {
+        type filter hook input priority 0; policy drop;
+        ip saddr 198.18.27.2 ip daddr 198.18.27.1 udp sport 44000 counter accept
+    }
+}
