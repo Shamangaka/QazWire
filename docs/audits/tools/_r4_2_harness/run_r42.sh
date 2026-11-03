@@ -21,6 +21,7 @@ go test -tags qazwire_exp -race -count=1 ./internal/qazwireexp/sessionlab
 cp "$AUDIT_DIR/r42_negative_test.go" internal/qazwireexp/sessionlab/r42_negative_test.go
 for testcase in \
   TestR42_01_ProviderMaterialAliasMustNotBeAccepted \
+  TestR42_01b_WipingOneProviderBreaksAnother \
   TestR42_02_PrunedKeysMustNotRemainInSliceCapacity; do
   printf '\n[negative] %s should FAIL on unmodified %s\n' "$testcase" "$TARGET"
   set +e
@@ -34,6 +35,7 @@ for testcase in \
     exit 3
   fi
   case "$testcase" in
+    TestR42_01b*) grep -q 'R42-01b first wipe invalidated second session' "$TMP/${testcase}.log" || exit 4;;
     TestR42_01*) grep -q 'R42-01 material alias accepted' "$TMP/${testcase}.log" || exit 4;;
     TestR42_02*) grep -q 'R42-02:' "$TMP/${testcase}.log" || exit 4;;
   esac
