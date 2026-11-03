@@ -1,0 +1,512 @@
+
+### M1.4 keylab: 2 seal workers, 1 emergency caller(s), maxMessages=2
+states explored: 3675, terminal states: 23
+  safety wipe_while_active           : holds
+  safety process_after_wipe          : holds
+  safety double_wipe                 : holds
+  safety dup_ticket                  : holds
+  safety over_limit                  : holds
+  no terminal state with blocked threads (no deadlock)
+  final-state property (closing => exactly one wipe and done closed): holds in every terminal state
+  observation ticket_after_close      : REACHABLE
+  observation process_after_close     : REACHABLE
+  observation ok_return_after_close   : REACHABLE
+  observation send_after_close        : REACHABLE
+  observation send_after_wipe         : REACHABLE
+
+  shortest interleaving for ticket_after_close:
+     1. S0: acquire: load state (open)
+     2. S0: acquire: CAS ok, refs++
+     3. S0: reserve: load next=0
+     4. S0: reserve: closing==0 observed
+     5. E0: beginEmergency: Or(closingBit)
+     6. S0: reserve: CAS next 0->1 (ticket 0)
+
+  shortest interleaving for process_after_close:
+     1. S0: acquire: load state (open)
+     2. S0: acquire: CAS ok, refs++
+     3. S0: reserve: load next=0
+     4. S0: reserve: closing==0 observed
+     5. S0: reserve: CAS next 0->1 (ticket 0)
+     6. E0: beginEmergency: Or(closingBit)
+     7. S0: process(): enter
+
+  shortest interleaving for ok_return_after_close:
+     1. S0: acquire: load state (open)
+     2. S0: acquire: CAS ok, refs++
+     3. S0: reserve: load next=0
+     4. S0: reserve: closing==0 observed
+     5. S0: reserve: CAS next 0->1 (ticket 0)
+     6. S0: process(): enter
+     7. S0: process(): return
+     8. S0: post-check: open
+     9. S0: release refs--
+    10. E0: beginEmergency: Or(closingBit) -> go finalize()
+    11. S0: sealPacket returned record
+
+  shortest interleaving for send_after_close:
+     1. S0: acquire: load state (open)
+     2. S0: acquire: CAS ok, refs++
+     3. S0: reserve: load next=0
+     4. S0: reserve: closing==0 observed
+     5. S0: reserve: CAS next 0->1 (ticket 0)
+     6. S0: process(): enter
+     7. S0: process(): return
+     8. S0: post-check: open
+     9. S0: release refs--
+    10. S0: sealPacket returned record
+    11. E0: beginEmergency: Or(closingBit) -> go finalize()
+    12. S0: caller sends datagram
+
+  shortest interleaving for send_after_wipe:
+     1. S0: acquire: load state (open)
+     2. S0: acquire: CAS ok, refs++
+     3. S0: reserve: load next=0
+     4. S0: reserve: closing==0 observed
+     5. S0: reserve: CAS next 0->1 (ticket 0)
+     6. S0: process(): enter
+     7. S0: process(): return
+     8. S0: post-check: open
+     9. S0: release refs--
+    10. S0: sealPacket returned record
+    11. E0: beginEmergency: Or(closingBit) -> go finalize()
+    12. F1: finalize: load (closing, refs=0)
+    13. F1: finalize: CAS wipingBit
+    14. F1: wipe()
+    15. S0: caller sends datagram
+
+### M1.4 keylab: 3 seal workers, 1 emergency caller(s), maxMessages=3
+states explored: 382894, terminal states: 38
+  safety wipe_while_active           : holds
+  safety process_after_wipe          : holds
+  safety double_wipe                 : holds
+  safety dup_ticket                  : holds
+  safety over_limit                  : holds
+  no terminal state with blocked threads (no deadlock)
+  final-state property (closing => exactly one wipe and done closed): holds in every terminal state
+  observation ticket_after_close      : REACHABLE
+  observation process_after_close     : REACHABLE
+  observation ok_return_after_close   : REACHABLE
+  observation send_after_close        : REACHABLE
+  observation send_after_wipe         : REACHABLE
+
+  shortest interleaving for ticket_after_close:
+     1. S0: acquire: load state (open)
+     2. S0: acquire: CAS ok, refs++
+     3. S0: reserve: load next=0
+     4. S0: reserve: closing==0 observed
+     5. E0: beginEmergency: Or(closingBit)
+     6. S0: reserve: CAS next 0->1 (ticket 0)
+
+  shortest interleaving for process_after_close:
+     1. S0: acquire: load state (open)
+     2. S0: acquire: CAS ok, refs++
+     3. S0: reserve: load next=0
+     4. S0: reserve: closing==0 observed
+     5. S0: reserve: CAS next 0->1 (ticket 0)
+     6. E0: beginEmergency: Or(closingBit)
+     7. S0: process(): enter
+
+  shortest interleaving for ok_return_after_close:
+     1. S0: acquire: load state (open)
+     2. S0: acquire: CAS ok, refs++
+     3. S0: reserve: load next=0
+     4. S0: reserve: closing==0 observed
+     5. S0: reserve: CAS next 0->1 (ticket 0)
+     6. S0: process(): enter
+     7. S0: process(): return
+     8. S0: post-check: open
+     9. S0: release refs--
+    10. E0: beginEmergency: Or(closingBit) -> go finalize()
+    11. S0: sealPacket returned record
+
+  shortest interleaving for send_after_close:
+     1. S0: acquire: load state (open)
+     2. S0: acquire: CAS ok, refs++
+     3. S0: reserve: load next=0
+     4. S0: reserve: closing==0 observed
+     5. S0: reserve: CAS next 0->1 (ticket 0)
+     6. S0: process(): enter
+     7. S0: process(): return
+     8. S0: post-check: open
+     9. S0: release refs--
+    10. S0: sealPacket returned record
+    11. E0: beginEmergency: Or(closingBit) -> go finalize()
+    12. S0: caller sends datagram
+
+  shortest interleaving for send_after_wipe:
+     1. S0: acquire: load state (open)
+     2. S0: acquire: CAS ok, refs++
+     3. S0: reserve: load next=0
+     4. S0: reserve: closing==0 observed
+     5. S0: reserve: CAS next 0->1 (ticket 0)
+     6. S0: process(): enter
+     7. S0: process(): return
+     8. S0: post-check: open
+     9. S0: release refs--
+    10. S0: sealPacket returned record
+    11. E0: beginEmergency: Or(closingBit) -> go finalize()
+    12. F1: finalize: load (closing, refs=0)
+    13. F1: finalize: CAS wipingBit
+    14. F1: wipe()
+    15. S0: caller sends datagram
+
+### M1.4 keylab: 2 seal workers, 2 emergency caller(s), maxMessages=2
+states explored: 17674, terminal states: 46
+  safety wipe_while_active           : holds
+  safety process_after_wipe          : holds
+  safety double_wipe                 : holds
+  safety dup_ticket                  : holds
+  safety over_limit                  : holds
+  no terminal state with blocked threads (no deadlock)
+  final-state property (closing => exactly one wipe and done closed): holds in every terminal state
+  observation ticket_after_close      : REACHABLE
+  observation process_after_close     : REACHABLE
+  observation ok_return_after_close   : REACHABLE
+  observation send_after_close        : REACHABLE
+  observation send_after_wipe         : REACHABLE
+
+  shortest interleaving for ticket_after_close:
+     1. S0: acquire: load state (open)
+     2. S0: acquire: CAS ok, refs++
+     3. S0: reserve: load next=0
+     4. S0: reserve: closing==0 observed
+     5. E0: beginEmergency: Or(closingBit)
+     6. S0: reserve: CAS next 0->1 (ticket 0)
+
+  shortest interleaving for process_after_close:
+     1. S0: acquire: load state (open)
+     2. S0: acquire: CAS ok, refs++
+     3. S0: reserve: load next=0
+     4. S0: reserve: closing==0 observed
+     5. S0: reserve: CAS next 0->1 (ticket 0)
+     6. E0: beginEmergency: Or(closingBit)
+     7. S0: process(): enter
+
+  shortest interleaving for ok_return_after_close:
+     1. S0: acquire: load state (open)
+     2. S0: acquire: CAS ok, refs++
+     3. S0: reserve: load next=0
+     4. S0: reserve: closing==0 observed
+     5. S0: reserve: CAS next 0->1 (ticket 0)
+     6. S0: process(): enter
+     7. S0: process(): return
+     8. S0: post-check: open
+     9. S0: release refs--
+    10. E0: beginEmergency: Or(closingBit) -> go finalize()
+    11. S0: sealPacket returned record
+
+  shortest interleaving for send_after_close:
+     1. S0: acquire: load state (open)
+     2. S0: acquire: CAS ok, refs++
+     3. S0: reserve: load next=0
+     4. S0: reserve: closing==0 observed
+     5. S0: reserve: CAS next 0->1 (ticket 0)
+     6. S0: process(): enter
+     7. S0: process(): return
+     8. S0: post-check: open
+     9. S0: release refs--
+    10. S0: sealPacket returned record
+    11. E0: beginEmergency: Or(closingBit) -> go finalize()
+    12. S0: caller sends datagram
+
+  shortest interleaving for send_after_wipe:
+     1. S0: acquire: load state (open)
+     2. S0: acquire: CAS ok, refs++
+     3. S0: reserve: load next=0
+     4. S0: reserve: closing==0 observed
+     5. S0: reserve: CAS next 0->1 (ticket 0)
+     6. S0: process(): enter
+     7. S0: process(): return
+     8. S0: post-check: open
+     9. S0: release refs--
+    10. S0: sealPacket returned record
+    11. E0: beginEmergency: Or(closingBit) -> go finalize()
+    12. F1: finalize: load (closing, refs=0)
+    13. F1: finalize: CAS wipingBit
+    14. F1: wipe()
+    15. S0: caller sends datagram
+
+### M1.5 proposal: 2 seal workers, 1 emergency caller(s), maxMessages=2
+states explored: 10758, terminal states: 16
+  safety wipe_while_active           : holds
+  safety process_after_wipe          : holds
+  safety double_wipe                 : holds
+  safety dup_ticket                  : holds
+  safety over_limit                  : holds
+  safety valid_ticket_after_close    : holds
+  safety send_after_stageA           : holds
+  safety unpoisoned_after_panic      : holds
+  no terminal state with blocked threads (no deadlock)
+  final-state property (closing => exactly one wipe and done closed): holds in every terminal state
+  observation burnt_ticket            : REACHABLE
+  observation process_after_close     : REACHABLE
+  observation send_after_close_before_stageA: REACHABLE
+  observation send_after_wipe         : REACHABLE
+
+  shortest interleaving for burnt_ticket:
+     1. S0: acquire: load
+     2. S0: acquire: CAS ok
+     3. S0: reserve: load next=0
+     4. S0: reserve: CAS next (ticket 0)
+     5. E0: emergency: Or(egressBlocked)
+     6. E0: emergency: Or(closingBit)
+     7. S0: reserve: closing after CAS -> ticket burnt
+
+  shortest interleaving for process_after_close:
+     1. S0: acquire: load
+     2. S0: acquire: CAS ok
+     3. S0: reserve: load next=0
+     4. S0: reserve: CAS next (ticket 0)
+     5. S0: reserve: ticket valid
+     6. E0: emergency: Or(egressBlocked)
+     7. E0: emergency: Or(closingBit)
+     8. S0: process(): enter
+
+  shortest interleaving for send_after_close_before_stageA:
+     1. S0: acquire: load
+     2. S0: acquire: CAS ok
+     3. S0: reserve: load next=0
+     4. S0: reserve: CAS next (ticket 0)
+     5. S0: reserve: ticket valid
+     6. S0: process(): enter
+     7. S0: process(): return
+     8. S0: post-check: open
+     9. S0: release
+    10. S0: egress: load (open)
+    11. S0: egress: CAS erefs++
+    12. E0: emergency: Or(egressBlocked)
+    13. E0: emergency: Or(closingBit) -> go finalize()
+    14. S0: send datagram
+
+  shortest interleaving for send_after_wipe:
+     1. S0: acquire: load
+     2. S0: acquire: CAS ok
+     3. S0: reserve: load next=0
+     4. S0: reserve: CAS next (ticket 0)
+     5. S0: reserve: ticket valid
+     6. S0: process(): enter
+     7. S0: process(): return
+     8. S0: post-check: open
+     9. S0: release
+    10. S0: egress: load (open)
+    11. S0: egress: CAS erefs++
+    12. E0: emergency: Or(egressBlocked)
+    13. E0: emergency: Or(closingBit) -> go finalize()
+    14. F1: finalize: load
+    15. F1: finalize: CAS wiping
+    16. F1: wipe()
+    17. S0: send datagram
+
+### M1.5 proposal: 3 seal workers, 1 emergency caller(s), maxMessages=3
+states explored: 1836688, terminal states: 28
+  safety wipe_while_active           : holds
+  safety process_after_wipe          : holds
+  safety double_wipe                 : holds
+  safety dup_ticket                  : holds
+  safety over_limit                  : holds
+  safety valid_ticket_after_close    : holds
+  safety send_after_stageA           : holds
+  safety unpoisoned_after_panic      : holds
+  no terminal state with blocked threads (no deadlock)
+  final-state property (closing => exactly one wipe and done closed): holds in every terminal state
+  observation burnt_ticket            : REACHABLE
+  observation process_after_close     : REACHABLE
+  observation send_after_close_before_stageA: REACHABLE
+  observation send_after_wipe         : REACHABLE
+
+  shortest interleaving for burnt_ticket:
+     1. S0: acquire: load
+     2. S0: acquire: CAS ok
+     3. S0: reserve: load next=0
+     4. S0: reserve: CAS next (ticket 0)
+     5. E0: emergency: Or(egressBlocked)
+     6. E0: emergency: Or(closingBit)
+     7. S0: reserve: closing after CAS -> ticket burnt
+
+  shortest interleaving for process_after_close:
+     1. S0: acquire: load
+     2. S0: acquire: CAS ok
+     3. S0: reserve: load next=0
+     4. S0: reserve: CAS next (ticket 0)
+     5. S0: reserve: ticket valid
+     6. E0: emergency: Or(egressBlocked)
+     7. E0: emergency: Or(closingBit)
+     8. S0: process(): enter
+
+  shortest interleaving for send_after_close_before_stageA:
+     1. S0: acquire: load
+     2. S0: acquire: CAS ok
+     3. S0: reserve: load next=0
+     4. S0: reserve: CAS next (ticket 0)
+     5. S0: reserve: ticket valid
+     6. S0: process(): enter
+     7. S0: process(): return
+     8. S0: post-check: open
+     9. S0: release
+    10. S0: egress: load (open)
+    11. S0: egress: CAS erefs++
+    12. E0: emergency: Or(egressBlocked)
+    13. E0: emergency: Or(closingBit) -> go finalize()
+    14. S0: send datagram
+
+  shortest interleaving for send_after_wipe:
+     1. S0: acquire: load
+     2. S0: acquire: CAS ok
+     3. S0: reserve: load next=0
+     4. S0: reserve: CAS next (ticket 0)
+     5. S0: reserve: ticket valid
+     6. S0: process(): enter
+     7. S0: process(): return
+     8. S0: post-check: open
+     9. S0: release
+    10. S0: egress: load (open)
+    11. S0: egress: CAS erefs++
+    12. E0: emergency: Or(egressBlocked)
+    13. E0: emergency: Or(closingBit) -> go finalize()
+    14. F1: finalize: load
+    15. F1: finalize: CAS wiping
+    16. F1: wipe()
+    17. S0: send datagram
+
+### M1.5 proposal: 2 seal workers, 2 emergency caller(s), maxMessages=2
+states explored: 97184, terminal states: 29
+  safety wipe_while_active           : holds
+  safety process_after_wipe          : holds
+  safety double_wipe                 : holds
+  safety dup_ticket                  : holds
+  safety over_limit                  : holds
+  safety valid_ticket_after_close    : holds
+  safety send_after_stageA           : holds
+  safety unpoisoned_after_panic      : holds
+  no terminal state with blocked threads (no deadlock)
+  final-state property (closing => exactly one wipe and done closed): holds in every terminal state
+  observation burnt_ticket            : REACHABLE
+  observation process_after_close     : REACHABLE
+  observation send_after_close_before_stageA: REACHABLE
+  observation send_after_wipe         : REACHABLE
+
+  shortest interleaving for burnt_ticket:
+     1. S0: acquire: load
+     2. S0: acquire: CAS ok
+     3. S0: reserve: load next=0
+     4. S0: reserve: CAS next (ticket 0)
+     5. E0: emergency: Or(egressBlocked)
+     6. E0: emergency: Or(closingBit)
+     7. S0: reserve: closing after CAS -> ticket burnt
+
+  shortest interleaving for process_after_close:
+     1. S0: acquire: load
+     2. S0: acquire: CAS ok
+     3. S0: reserve: load next=0
+     4. S0: reserve: CAS next (ticket 0)
+     5. S0: reserve: ticket valid
+     6. E0: emergency: Or(egressBlocked)
+     7. E0: emergency: Or(closingBit)
+     8. S0: process(): enter
+
+  shortest interleaving for send_after_close_before_stageA:
+     1. S0: acquire: load
+     2. S0: acquire: CAS ok
+     3. S0: reserve: load next=0
+     4. S0: reserve: CAS next (ticket 0)
+     5. S0: reserve: ticket valid
+     6. S0: process(): enter
+     7. S0: process(): return
+     8. S0: post-check: open
+     9. S0: release
+    10. S0: egress: load (open)
+    11. S0: egress: CAS erefs++
+    12. E0: emergency: Or(egressBlocked)
+    13. E0: emergency: Or(closingBit) -> go finalize()
+    14. S0: send datagram
+
+  shortest interleaving for send_after_wipe:
+     1. S0: acquire: load
+     2. S0: acquire: CAS ok
+     3. S0: reserve: load next=0
+     4. S0: reserve: CAS next (ticket 0)
+     5. S0: reserve: ticket valid
+     6. S0: process(): enter
+     7. S0: process(): return
+     8. S0: post-check: open
+     9. S0: release
+    10. S0: egress: load (open)
+    11. S0: egress: CAS erefs++
+    12. E0: emergency: Or(egressBlocked)
+    13. E0: emergency: Or(closingBit) -> go finalize()
+    14. F1: finalize: load
+    15. F1: finalize: CAS wiping
+    16. F1: wipe()
+    17. S0: send datagram
+
+### M1.5 proposal: 2 seal workers, 1 emergency caller(s), maxMessages=2, worker S0 provider panics
+states explored: 6758, terminal states: 26
+  safety wipe_while_active           : holds
+  safety process_after_wipe          : holds
+  safety double_wipe                 : holds
+  safety dup_ticket                  : holds
+  safety over_limit                  : holds
+  safety valid_ticket_after_close    : holds
+  safety send_after_stageA           : holds
+  safety unpoisoned_after_panic      : holds
+  no terminal state with blocked threads (no deadlock)
+  final-state property (closing => exactly one wipe and done closed): holds in every terminal state
+  observation burnt_ticket            : REACHABLE
+  observation process_after_close     : REACHABLE
+  observation send_after_close_before_stageA: REACHABLE
+  observation send_after_wipe         : REACHABLE
+
+  shortest interleaving for burnt_ticket:
+     1. S0: acquire: load
+     2. S0: acquire: CAS ok
+     3. S0: reserve: load next=0
+     4. S0: reserve: CAS next (ticket 0)
+     5. E0: emergency: Or(egressBlocked)
+     6. E0: emergency: Or(closingBit)
+     7. S0: reserve: closing after CAS -> ticket burnt
+
+  shortest interleaving for process_after_close:
+     1. S0: acquire: load
+     2. S0: acquire: CAS ok
+     3. S0: reserve: load next=0
+     4. S0: reserve: CAS next (ticket 0)
+     5. S0: reserve: ticket valid
+     6. E0: emergency: Or(egressBlocked)
+     7. E0: emergency: Or(closingBit)
+     8. S0: process(): enter
+
+  shortest interleaving for send_after_close_before_stageA:
+     1. S1: acquire: load
+     2. S1: acquire: CAS ok
+     3. S1: reserve: load next=0
+     4. S1: reserve: CAS next (ticket 0)
+     5. S1: reserve: ticket valid
+     6. S1: process(): enter
+     7. S1: process(): return
+     8. S1: post-check: open
+     9. S1: release
+    10. S1: egress: load (open)
+    11. S1: egress: CAS erefs++
+    12. E0: emergency: Or(egressBlocked)
+    13. E0: emergency: Or(closingBit) -> go finalize()
+    14. S1: send datagram
+
+  shortest interleaving for send_after_wipe:
+     1. S1: acquire: load
+     2. S1: acquire: CAS ok
+     3. S1: reserve: load next=0
+     4. S1: reserve: CAS next (ticket 0)
+     5. S1: reserve: ticket valid
+     6. S1: process(): enter
+     7. S1: process(): return
+     8. S1: post-check: open
+     9. S1: release
+    10. S1: egress: load (open)
+    11. S1: egress: CAS erefs++
+    12. E0: emergency: Or(egressBlocked)
+    13. E0: emergency: Or(closingBit) -> go finalize()
+    14. F1: finalize: load
+    15. F1: finalize: CAS wiping
+    16. F1: wipe()
+    17. S1: send datagram

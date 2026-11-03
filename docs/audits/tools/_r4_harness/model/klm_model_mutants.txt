@@ -1,0 +1,17 @@
+### MUTANT acquire_ignores_closing
+states explored: 6505, terminal states: 32
+  => mutant acquire_ignores_closing: SURVIVED: equivalent mutant -- masked by the closing check in reserve()
+### MUTANT no_closing_checks
+states explored: 10176, terminal states: 35
+  safety wipe_while_active           : VIOLATED
+  safety process_after_wipe          : VIOLATED
+  => mutant no_closing_checks: KILLED
+### MUTANT release_never_finalizes
+states explored: 3512, terminal states: 26
+  final: closing but not wiped exactly once: VIOLATED
+  final-state property (closing => exactly one wipe and done closed): VIOLATED
+  => mutant release_never_finalizes: KILLED
+### MUTANT ticket_store_not_cas
+states explored: 4539, terminal states: 38
+  safety dup_ticket                  : VIOLATED
+  => mutant ticket_store_not_cas: KILLED

@@ -142,6 +142,9 @@ for rate in (1, 10, 100):
           f" -> t=128 guessing term 2^{v - 128:.1f}; t=256 -> 2^{v - 256:.1f}")
 
 # ---------------------------------------------------------------- resources
+# ERRATUM R4: the section below does not define whether p is a TOTAL or a PER-TARGET budget,
+# and leaves no budget for the handshake. Superseded by tools/security_bounds_r4.py
+# (QAZWIRE_AUDIT_R4.md section 6). Kept unchanged for traceability.
 show("Resource model: the target is meaningless without an adversary work bound p")
 p_x = (SYSTEM + 252) / 2
 print(f"  X25519 generic rho p^2/2^252 <= 2^{SYSTEM}  =>  p <= 2^{p_x:.0f} group operations (single instance)")
