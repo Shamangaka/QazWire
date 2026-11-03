@@ -91,7 +91,7 @@ type generation struct {
 }
 
 type ticketState struct {
-	session *Session
+	session *labSession
 	gen     *generation
 	seq     uint64
 	data    []byte
@@ -124,10 +124,23 @@ type Stats struct {
 	Faulted      bool
 }
 
-// Session is the sole owner of all material and ticket states. Every field
-// except the read-only test hook is guarded by mu. No foreign callback is
-// executed while mu is held.
-type Session struct {
+// Session is a sealed PUBLIC CAPABILITY, not a copyable concrete owner.
+// External packages cannot copy the private owner or supply a provider.
+type Session interface {
+	Prepare([]byte) (Ticket, error)
+	Consume(Ticket) (LabRecord, error)
+	Discard(Ticket) error
+	Rotate() error
+	Stop()
+	AwaitDestroyed(context.Context) error
+	Fault() error
+	Snapshot() Stats
+	sessionMarker()
+}
+
+// labSession owns all material and tickets; mu protects its fields.
+// No foreign callback executes while mu is held.
+type labSession struct {
 	mu           sync.Mutex
 	id           uint64
 	current      *generation
@@ -148,7 +161,7 @@ type Session struct {
 // NewLabSession creates all synthetic material INSIDE the KLM package.
 // The only inputs are resource limits, never secret material or a provider.
 // The guarantee of unique IDs applies only to this process lifetime.
-func NewLabSession(maxTickets, maxQueuedBytes uint64, maxPinned int) (*Session, error) {
+func NewLabSession(maxTickets, maxQueuedBytes uint64, maxPinned int) (Session, error) {
 	if maxTickets == 0 || maxQueuedBytes == 0 || maxPinned < 1 {
 		return nil, ErrInvalid
 	}
@@ -166,7 +179,7 @@ func NewLabSession(maxTickets, maxQueuedBytes uint64, maxPinned int) (*Session, 
 		max:      maxTickets,
 		done:     make(chan struct{}),
 	}
-	return &Session{
+	return &labSession{
 		id:          id,
 		current:     g,
 		generations: []*generation{g},
@@ -176,7 +189,9 @@ func NewLabSession(maxTickets, maxQueuedBytes uint64, maxPinned int) (*Session, 
 	}, nil
 }
 
-func (s *Session) stopErrorLocked() error {
+func (*labSession) sessionMarker() {}
+
+func (s *labSession) stopErrorLocked() error {
 	if s.fault != nil {
 		return s.fault
 	}
@@ -184,7 +199,7 @@ func (s *Session) stopErrorLocked() error {
 }
 
 // releaseLocked is called exactly once for each acquired generation lease.
-func (s *Session) releaseLocked(g *generation) {
+func (s *labSession) releaseLocked(g *generation) {
 	if g.refs == 0 {
 		panic("klm16: unpaired generation release")
 	}
@@ -192,7 +207,7 @@ func (s *Session) releaseLocked(g *generation) {
 	s.finishLocked(g)
 }
 
-func (s *Session) finishLocked(g *generation) {
+func (s *labSession) finishLocked(g *generation) {
 	if !g.retiring || g.refs != 0 || g.wiped {
 		return
 	}
@@ -203,7 +218,7 @@ func (s *Session) finishLocked(g *generation) {
 
 // Compact by allocating NEW backing storage, avoiding stale references in
 // the hidden capacity of an in-place filtered []generation slice (R42-10).
-func (s *Session) pruneLocked() {
+func (s *labSession) pruneLocked() {
 	next := make([]*generation, 0, len(s.generations))
 	for _, g := range s.generations {
 		if !g.wiped || g == s.current || g == s.previous {
@@ -213,7 +228,7 @@ func (s *Session) pruneLocked() {
 	s.generations = next
 }
 
-func (s *Session) removeTicketLocked(state *ticketState) {
+func (s *labSession) removeTicketLocked(state *ticketState) {
 	if _, found := s.pending[state]; !found {
 		return
 	}
@@ -224,7 +239,7 @@ func (s *Session) removeTicketLocked(state *ticketState) {
 	s.releaseLocked(state.gen)
 }
 
-func (s *Session) stopLocked(cause error) {
+func (s *labSession) stopLocked(cause error) {
 	if cause != nil && s.fault == nil {
 		s.fault = cause
 	}
@@ -245,7 +260,7 @@ func (s *Session) stopLocked(cause error) {
 // Stop rejects new operations, destroys all queued synthetic buffers and
 // starts erasure of every generation whose outstanding references are zero.
 // A stalled worker cannot be forcibly interrupted by Go.
-func (s *Session) Stop() {
+func (s *labSession) Stop() {
 	s.mu.Lock()
 	s.stopLocked(nil)
 	s.mu.Unlock()
@@ -257,7 +272,7 @@ func (s *Session) Stop() {
 //
 // A rotation can reject the operation before admission. Up to three bounded
 // retries are allowed; no ticket is ever reused after a retry.
-func (s *Session) Prepare(payload []byte) (ticket Ticket, err error) {
+func (s *labSession) Prepare(payload []byte) (ticket Ticket, err error) {
 	var leased *generation
 	var private []byte
 	defer func() {
@@ -341,7 +356,7 @@ func (s *Session) Prepare(payload []byte) (ticket Ticket, err error) {
 
 // Consume simulates completion of egress; it DOES NOT send to a network.
 // The returned plaintext record must never be used as a VPN packet.
-func (s *Session) Consume(t Ticket) (LabRecord, error) {
+func (s *labSession) Consume(t Ticket) (LabRecord, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
@@ -371,7 +386,7 @@ func (s *Session) Consume(t Ticket) (LabRecord, error) {
 }
 
 // Discard consumes a queued ticket without emitting a record.
-func (s *Session) Discard(t Ticket) error {
+func (s *labSession) Discard(t Ticket) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if t.state == nil || t.state.session != s {
@@ -389,7 +404,7 @@ func (s *Session) Discard(t Ticket) error {
 // immediately previous generation may complete already acquired work;
 // older generations are discarded. A pinned-generation overflow causes a
 // fail-closed stop rather than uncontrolled growth of old process leases.
-func (s *Session) Rotate() error {
+func (s *labSession) Rotate() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
@@ -444,7 +459,7 @@ func (s *Session) Rotate() error {
 
 // AwaitDestroyed observes a previous Stop; it never initiates Stop.
 // Completion is only confirmation that the SYNTHETIC wipe function returned.
-func (s *Session) AwaitDestroyed(ctx context.Context) error {
+func (s *labSession) AwaitDestroyed(ctx context.Context) error {
 	if ctx == nil {
 		return ErrInvalid
 	}
@@ -468,13 +483,13 @@ func (s *Session) AwaitDestroyed(ctx context.Context) error {
 	return nil
 }
 
-func (s *Session) Fault() error {
+func (s *labSession) Fault() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.fault
 }
 
-func (s *Session) Snapshot() Stats {
+func (s *labSession) Snapshot() Stats {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	live := 0
