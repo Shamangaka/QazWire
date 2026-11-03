@@ -1,0 +1,65 @@
+name: QazWire M1.6.1 ownership and Stage-D lab
+on:
+  push:
+    branches:
+      - feature/m1-6-1-ownership-concurrency-stage-d
+
+permissions:
+  contents: read
+
+jobs:
+  m161:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout immutable revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Record environment
+        run: |
+          go version
+          git rev-parse HEAD
+
+      - name: Check formatting and whitespace
+        run: |
+          set -euo pipefail
+          if [ -n "$(gofmt -l internal/qazwireexp/klm16/*.go internal/qazwireexp/staged16/*.go)" ]; then
+            gofmt -w internal/qazwireexp/klm16/*.go internal/qazwireexp/staged16/*.go
+            git diff -- internal/qazwireexp/klm16 internal/qazwireexp/staged16
+            exit 1
+          fi
+          git diff --check
+
+      - name: Two-worker bounded state model and mutations
+        run: python3 docs/qazwire/tools/m161_bounded_model.py
+
+      - name: Deterministic M1.6.1 and Stage-D tests 10x race
+        run: |
+          go test -tags qazwire_exp -race -count=10 \
+            ./internal/qazwireexp/klm16 ./internal/qazwireexp/staged16
+
+      - name: External API abuse must not compile
+        run: |
+          set -euo pipefail
+          set +e
+          go test -tags qazwire_exp ./internal/qazwireexp/klm16/testdata/negative > /tmp/negative.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/negative.log
+          test "$status" -ne 0
+          grep -q 'cannot indirect owner' /tmp/negative.log
+          grep -q 'cannot refer to unexported field state' /tmp/negative.log
+
+      - name: Full experimental regression
+        run: go test -tags qazwire_exp -count=1 ./...
+
+      - name: Full experimental race regression
+        run: go test -tags qazwire_exp -race -count=1 ./...
+
+      - name: Static vet
+        run: go vet -tags qazwire_exp ./...
+
+      - name: Untagged upstream regression
+        run: go test -count=1 ./...
