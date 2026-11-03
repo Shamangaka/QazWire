@@ -1,0 +1,64 @@
+name: QazWire M1.7.2b kernel A0 network namespace research lab
+on:
+  push:
+    branches:
+      - feature/m1-7-2b-kernel-a0-netns-lab
+  pull_request:
+    branches:
+      - feature/m1-7-2-watchdog-a0-synthetic
+
+permissions:
+  contents: read
+
+jobs:
+  m172b-static:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact SHA without credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Record exact revision and environment
+        run: |
+          git rev-parse HEAD
+          go version
+          python3 --version
+          uname -a
+
+      - name: Static Bash/Python syntax and scoped policy tests
+        run: |
+          set -euo pipefail
+          bash -n scripts/qazwire-m172b-kernel-a0-netns-lab.sh
+          bash -n scripts/qazwire-m172-watchdog-lab.sh
+          python3 -m py_compile scripts/m172b_netns_probe.py scripts/m172b_static_tests.py
+          python3 scripts/m172b_static_tests.py
+          test -z "$(gofmt -l cmd/qazwire-cgrouplab/*.go)"
+          git diff --check
+
+      - name: Prior synthetic watchdog unit regressions with race detector
+        run: go test -tags qazwire_exp -race -count=10 ./cmd/qazwire-cgrouplab
+
+      - name: Prior M1.7.0 and M1.6.2 regressions
+        run: |
+          go test -tags qazwire_exp -race -count=10 ./internal/qazwireexp/klmproc17 ./internal/qazwireexp/klm16 ./internal/qazwireexp/staged16
+          python3 -I docs/qazwire/tools/r5_klm16_model.py --patched K3 K4 K6 > /tmp/model.txt
+          cat /tmp/model.txt
+          ! grep -q VIOLATED /tmp/model.txt
+
+      - name: Full tagged tests and race regression
+        run: |
+          go test -tags qazwire_exp -count=1 ./...
+          go test -tags qazwire_exp -race -count=1 ./...
+
+      - name: Static vet and unchanged upstream regression
+        run: |
+          go vet -tags qazwire_exp ./...
+          go test -count=1 ./...
+
+      - name: Explicit real kernel testing boundary
+        run: |
+          echo 'No privileged network namespaces or nftables rules were created by CI.'
+          echo 'This is a static PASS ONLY. Owner must run isolated Ubuntu kernel netns experiment.'
+          echo 'No claim of immediate egress deny on watchdog death, crypto security or production compliance.'
