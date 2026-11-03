@@ -314,8 +314,14 @@ func workAsParent(dir string) error {
 	}
 	// Intentionally no Pdeathsig for child: a detached setsid descendant
 	// must be killed by the cgroup mechanism, NOT via parent-death signal.
+	// The private pulse is a SYNTHETIC liveness hint, not an authenticated
+	// heartbeat. It deliberately stops changing when this worker is SIGSTOPed.
+	pulse := filepath.Join(dir, "pulse")
 	for {
-		time.Sleep(time.Second)
+		if err := os.WriteFile(pulse, []byte("synthetic-alive"), 0600); err != nil {
+			return err
+		}
+		time.Sleep(40 * time.Millisecond)
 	}
 }
 
