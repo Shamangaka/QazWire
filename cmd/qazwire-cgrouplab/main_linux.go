@@ -17,6 +17,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -129,7 +131,7 @@ func validateCgroupV2Root() error {
 // killVerified is intentionally not exported. A trusted lab wrapper supplies
 // a unique unit name, expected systemd MainPID and exact resource limits.
 // A process running as root is rejected (no privileged kill in this lab).
-func killVerified(cg, unit string, mainPID int, memoryBytes uint64, taskLimit uint64) error {
+func killVerified(cg, unit string, mainPID, escapedPID int, memoryBytes uint64, taskLimit uint64) error {
 	if err := validateUnitPath(os.Getuid(), unit, cg); err != nil {
 		return err
 	}
@@ -139,8 +141,31 @@ func killVerified(cg, unit string, mainPID int, memoryBytes uint64, taskLimit ui
 	if err := validateCgroupV2Root(); err != nil {
 		return err
 	}
-	if err := verifyProcessInCgroup(mainPID, cg); err != nil {
-		return err
+	if escapedPID <= 1 || escapedPID == mainPID {
+		return errors.New("invalid setsid descendant PID")
+	}
+	for _, pid := range []int{mainPID, escapedPID} {
+		if err := verifyProcessInCgroup(pid, cg); err != nil {
+			return fmt.Errorf("process %d not verified in exact cgroup: %w", pid, err)
+		}
+	}
+	// pidfd holds a reference to the specific processes, preventing PID reuse
+	// from being mistaken for their termination. Both are opened before kill.
+	parentFD, err := unix.PidfdOpen(mainPID, 0)
+	if err != nil {
+		return fmt.Errorf("cannot pin MainPID with pidfd: %w", err)
+	}
+	defer unix.Close(parentFD)
+	escapedFD, err := unix.PidfdOpen(escapedPID, 0)
+	if err != nil {
+		return fmt.Errorf("cannot pin setsid descendant with pidfd: %w", err)
+	}
+	defer unix.Close(escapedFD)
+	// Re-check membership after opening pidfds; reject observable PID races.
+	for _, pid := range []int{mainPID, escapedPID} {
+		if err := verifyProcessInCgroup(pid, cg); err != nil {
+			return fmt.Errorf("membership changed before kill for PID %d: %w", pid, err)
+		}
 	}
 	path := cgroupRoot + cg
 	if err := verifyLimit(filepath.Join(path, "memory.max"), "134217728"); err != nil {
@@ -150,9 +175,10 @@ func killVerified(cg, unit string, mainPID int, memoryBytes uint64, taskLimit ui
 		return err
 	}
 
-	// Keep cgroup.events OPEN before issuing the destructive operation.
-	// This limits systemd's unit-cleanup race: the cgroup path may disappear
-	// as soon as the last task exits. Read failure is NOT_CONFIRMED, not PASS.
+	// Keep cgroup.events open before issuing the destructive operation.
+	// systemd may unlink the empty unit cgroup before a second Seek can
+	// observe populated=0: ENODEV is then possible. Never equate ENODEV
+	// alone with successful killing. See independent pidfd verification below.
 	events, err := os.Open(filepath.Join(path, "cgroup.events"))
 	if err != nil {
 		return fmt.Errorf("events unavailable: %w", err)
@@ -182,19 +208,60 @@ func killVerified(cg, unit string, mainPID int, memoryBytes uint64, taskLimit ui
 	}
 	deadline := time.Now().Add(waitKill)
 	for {
-		populated, err := check()
+		parentExited, err := processExited(parentFD)
 		if err != nil {
-			return fmt.Errorf("NOT_CONFIRMED: cannot read events after kill: %w", err)
+			return fmt.Errorf("NOT_CONFIRMED: MainPID pidfd: %w", err)
 		}
-		if !populated {
-			fmt.Println("M1.7.1 PASS: cgroup.kill issued; cgroup.events populated=0")
-			return nil
+		escapedExited, err := processExited(escapedFD)
+		if err != nil {
+			return fmt.Errorf("NOT_CONFIRMED: setsid child pidfd: %w", err)
+		}
+		bothExited := parentExited && escapedExited
+		populated, eventErr := check()
+		switch {
+		case eventErr == nil:
+			if !populated && bothExited {
+				fmt.Println("M1.7.1 PASS: cgroup.kill issued; cgroup.events populated=0; both pidfds exited")
+				return nil
+			}
+		case errors.Is(eventErr, syscall.ENODEV), errors.Is(eventErr, os.ErrNotExist):
+			// If systemd removed this exact unit cgroup after cgroup.kill,
+			// a previously opened cgroup.events may return ENODEV on Seek.
+			// Distinguish this from a live cgroup with a failing event FD.
+			_, statErr := os.Stat(path)
+			if errors.Is(statErr, os.ErrNotExist) && bothExited {
+				fmt.Println("M1.7.1 PASS: cgroup.kill issued; unit cgroup removed; both pidfds exited (populated=0 NOT directly observed)")
+				return nil
+			}
+			if statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
+				return fmt.Errorf("NOT_CONFIRMED: cannot stat cgroup after events error: %w", statErr)
+			}
+		default:
+			return fmt.Errorf("NOT_CONFIRMED: cannot read events after kill: %w", eventErr)
 		}
 		if !time.Now().Before(deadline) {
-			return errors.New("NOT_CONFIRMED: cgroup.events populated=1 after deadline")
+			return fmt.Errorf("NOT_CONFIRMED: deadline expired; parent_exited=%t setsid_exited=%t populated=%t events_err=%v", parentExited, escapedExited, populated, eventErr)
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
+}
+
+// processExited is a non-blocking check of one specific Linux task identity.
+// Poll reports readable on task exit (even if the task remains a zombie).
+ // Never use Kill(pid,0) here: PID reuse could invalidate that observation.
+func processExited(fd int) (bool, error) {
+	fds := []unix.PollFd{{Fd: int32(fd), Events: unix.POLLIN | unix.POLLHUP}}
+	_, err := unix.Poll(fds, 0)
+	if errors.Is(err, unix.EINTR) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if fds[0].Revents&(unix.POLLERR|unix.POLLNVAL) != 0 {
+		return false, fmt.Errorf("pidfd poll error: %#x", fds[0].Revents)
+	}
+	return fds[0].Revents&(unix.POLLIN|unix.POLLHUP) != 0, nil
 }
 
 func checkPrivateDir(dir string) error {
@@ -268,25 +335,29 @@ func main() {
 			}
 			return
 		case "kill":
-			if len(os.Args) != 7 {
-				die(errors.New("usage: kill <cgroup> <unit> <mainpid> <memory-bytes> <task-limit>"))
+			if len(os.Args) != 8 {
+				die(errors.New("usage: kill <cgroup> <unit> <mainpid> <setsidpid> <memory-bytes> <task-limit>"))
 			}
 			pid, err := strconv.Atoi(os.Args[4])
 			if err != nil {
 				die(err)
 			}
-			memory, err := strconv.ParseUint(os.Args[5], 10, 64)
+			escapedPID, err := strconv.Atoi(os.Args[5])
 			if err != nil {
 				die(err)
 			}
-			tasks, err := strconv.ParseUint(os.Args[6], 10, 64)
+			memory, err := strconv.ParseUint(os.Args[6], 10, 64)
+			if err != nil {
+				die(err)
+			}
+			tasks, err := strconv.ParseUint(os.Args[7], 10, 64)
 			if err != nil {
 				die(err)
 			}
 			// Do not use a context to cancel this cleanup on caller request.
 			// A timeout always returns NOT_CONFIRMED and cleanup is left to
 			// the independent user systemd manager / wrapper EXIT trap.
-			if err := killVerified(os.Args[2], os.Args[3], pid, memory, tasks); err != nil {
+			if err := killVerified(os.Args[2], os.Args[3], pid, escapedPID, memory, tasks); err != nil {
 				die(err)
 			}
 			return
