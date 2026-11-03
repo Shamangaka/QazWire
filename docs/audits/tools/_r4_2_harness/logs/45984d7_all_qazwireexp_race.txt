@@ -1,0 +1,5 @@
+ok  	harness/internal/qazwireexp	1.020s
+ok  	harness/internal/qazwireexp/keylab	1.104s
+ok  	harness/internal/qazwireexp/sessionlab	35.263s
+ok  	harness/internal/qazwireexp/sessionlab_instr	1.158s
+exit=0

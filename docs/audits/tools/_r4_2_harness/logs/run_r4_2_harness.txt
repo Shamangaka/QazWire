@@ -1,0 +1,61 @@
+PR #13 @ 45984d70b46c86c87bad85d3825a736c75994f6a; session.go blob: 0305fa2f625abcfa0c370051c28995bec6a89184 (expected 0305fa2...)
+== 1) defects on the UNMODIFIED code (black box, -race, 3 runs)
+    r41_regression_test.go:336: 300 rounds, 33715 sends, 5045 rotations: 0 sends after drain, 0 sends after own-key wipe, 0 duplicate (generation,ticket), 0 wipes under process, 0 process on wiped provider, all refs 0, pending empty
+    r42_blackbox_test.go:73: CONFIRMED R42-01a: two provider objects over one material were both claimed; wiping session 1 erased the material still used by live session 2 (process on wiped material)
+    r42_blackbox_test.go:90: CONFIRMED R42-01b: a pre-claim struct copy carries an unclaimed providerClaim; both objects (same material pointer) were accepted
+    r42_blackbox_test.go:114: CONFIRMED R42-01c: claim() is implemented by the provider being checked; a provider returning true is accepted by rotate() on the same session and by a second session (R41-01 bypass)
+    r42_blackbox_test.go:143: CONFIRMED R42-02: (material id, ticket) = [42 0] processed in generation 0 and again in generation 1; tickets restart at 0 per generation and nothing binds them to the material or an epoch (nonce reuse class)
+    r42_blackbox_test.go:176: CONFIRMED R42-03: *vrProc passes validProvider (pointer kind); its value-receiver wipe() cleared a copy; awaitDrained returned nil while p.material is intact (0xa5)
+    r42_blackbox_test.go:193: CONFIRMED R42-04: dispatch returned errProviderFault for a sink panic, but faultState() = (false, false): the fault signal is lost for an orchestrator that polls faultState
+    r42_blackbox_test.go:238: CONFIRMED R42-05: 64 rotations with one hung operation each keep 65 generations (and their providers) alive; no cap exists; emergency cannot finish (sessionlab: shutdown not complete; external isolation required) -> only external Stage D bounds it
+    r42_blackbox_test.go:311: CONFIRMED R42-10: after pruning len(s.keys)=3 cap=16; 4 pruned (already wiped) generations remain reachable through the backing array, so their providers cannot be collected
+    r41_regression_test.go:336: 300 rounds, 32256 sends, 5420 rotations: 0 sends after drain, 0 sends after own-key wipe, 0 duplicate (generation,ticket), 0 wipes under process, 0 process on wiped provider, all refs 0, pending empty
+    r42_blackbox_test.go:73: CONFIRMED R42-01a: two provider objects over one material were both claimed; wiping session 1 erased the material still used by live session 2 (process on wiped material)
+    r42_blackbox_test.go:90: CONFIRMED R42-01b: a pre-claim struct copy carries an unclaimed providerClaim; both objects (same material pointer) were accepted
+    r42_blackbox_test.go:114: CONFIRMED R42-01c: claim() is implemented by the provider being checked; a provider returning true is accepted by rotate() on the same session and by a second session (R41-01 bypass)
+    r42_blackbox_test.go:143: CONFIRMED R42-02: (material id, ticket) = [42 0] processed in generation 0 and again in generation 1; tickets restart at 0 per generation and nothing binds them to the material or an epoch (nonce reuse class)
+    r42_blackbox_test.go:176: CONFIRMED R42-03: *vrProc passes validProvider (pointer kind); its value-receiver wipe() cleared a copy; awaitDrained returned nil while p.material is intact (0xa5)
+    r42_blackbox_test.go:193: CONFIRMED R42-04: dispatch returned errProviderFault for a sink panic, but faultState() = (false, false): the fault signal is lost for an orchestrator that polls faultState
+    r42_blackbox_test.go:238: CONFIRMED R42-05: 64 rotations with one hung operation each keep 65 generations (and their providers) alive; no cap exists; emergency cannot finish (sessionlab: shutdown not complete; external isolation required) -> only external Stage D bounds it
+    r42_blackbox_test.go:311: CONFIRMED R42-10: after pruning len(s.keys)=3 cap=16; 4 pruned (already wiped) generations remain reachable through the backing array, so their providers cannot be collected
+    r41_regression_test.go:336: 300 rounds, 30300 sends, 4814 rotations: 0 sends after drain, 0 sends after own-key wipe, 0 duplicate (generation,ticket), 0 wipes under process, 0 process on wiped provider, all refs 0, pending empty
+    r42_blackbox_test.go:73: CONFIRMED R42-01a: two provider objects over one material were both claimed; wiping session 1 erased the material still used by live session 2 (process on wiped material)
+    r42_blackbox_test.go:90: CONFIRMED R42-01b: a pre-claim struct copy carries an unclaimed providerClaim; both objects (same material pointer) were accepted
+    r42_blackbox_test.go:114: CONFIRMED R42-01c: claim() is implemented by the provider being checked; a provider returning true is accepted by rotate() on the same session and by a second session (R41-01 bypass)
+    r42_blackbox_test.go:143: CONFIRMED R42-02: (material id, ticket) = [42 0] processed in generation 0 and again in generation 1; tickets restart at 0 per generation and nothing binds them to the material or an epoch (nonce reuse class)
+    r42_blackbox_test.go:176: CONFIRMED R42-03: *vrProc passes validProvider (pointer kind); its value-receiver wipe() cleared a copy; awaitDrained returned nil while p.material is intact (0xa5)
+    r42_blackbox_test.go:193: CONFIRMED R42-04: dispatch returned errProviderFault for a sink panic, but faultState() = (false, false): the fault signal is lost for an orchestrator that polls faultState
+    r42_blackbox_test.go:238: CONFIRMED R42-05: 64 rotations with one hung operation each keep 65 generations (and their providers) alive; no cap exists; emergency cannot finish (sessionlab: shutdown not complete; external isolation required) -> only external Stage D bounds it
+    r42_blackbox_test.go:311: CONFIRMED R42-10: after pruning len(s.keys)=3 cap=16; 4 pruned (already wiped) generations remain reachable through the backing array, so their providers cannot be collected
+ok  	harness/internal/qazwireexp/sessionlab	102.451s
+    r42_interleave_test.go:60: CONFIRMED R42-07 (LOW): second rotation between seal and fence -> packet burnt, prepare returns errClosed without retry although the session is open
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+    r42_interleave_test.go:152: CONFIRMED R42-06 (LOW): WIPE_FAILED latched, emergency not yet started: a queued packet of another generation was sent (dispatch is fenced only by the asynchronous egress close)
+    r42_interleave_test.go:60: CONFIRMED R42-07 (LOW): second rotation between seal and fence -> packet burnt, prepare returns errClosed without retry although the session is open
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+    r42_interleave_test.go:152: CONFIRMED R42-06 (LOW): WIPE_FAILED latched, emergency not yet started: a queued packet of another generation was sent (dispatch is fenced only by the asynchronous egress close)
+    r42_interleave_test.go:60: CONFIRMED R42-07 (LOW): second rotation between seal and fence -> packet burnt, prepare returns errClosed without retry although the session is open
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+    r42_interleave_test.go:152: CONFIRMED R42-06 (LOW): WIPE_FAILED latched, emergency not yet started: a queued packet of another generation was sent (dispatch is fenced only by the asynchronous egress close)
+ok  	harness/internal/qazwireexp/sessionlab_instr	1.483s
+== 1b) fix interleavings on the UNMODIFIED code (expected: FAIL)
+--- FAIL: TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries (0.00s)
+--- FAIL: TestR42IFix_06b_NoDispatchInsideLatchWindow (0.00s)
+FAIL
+FAIL	harness/internal/qazwireexp/sessionlab_instr	0.004s
+FAIL
+== 2) PATCHED copy: owner tests + R4.2 tests + fix tests (-race, 10 runs)
+ok  	harness/internal/qazwireexp/sessionlab	346.720s
+ok  	harness/internal/qazwireexp/sessionlab_instr	2.716s
+== 2b) the five defect demonstrations on the PATCHED copy (expected: FAIL = not reproduced)
+--- FAIL: TestR42_04_SinkPanicNotLatched (0.00s)
+--- FAIL: TestR42_05_HungOperationsPinGenerationsUnbounded (0.00s)
+--- FAIL: TestR42_10_PrunedKeysRetainedInSliceCapacity (0.00s)
+FAIL
+FAIL	harness/internal/qazwireexp/sessionlab	0.005s
+--- FAIL: TestR42I_07_SecondRotationBetweenSealAndFence (0.00s)
+--- FAIL: TestR42I_06b_QueuedPacketSentInsideLatchWindow (0.00s)
+FAIL
+FAIL	harness/internal/qazwireexp/sessionlab_instr	0.004s
+FAIL
+harness exit=0 elapsed 454s

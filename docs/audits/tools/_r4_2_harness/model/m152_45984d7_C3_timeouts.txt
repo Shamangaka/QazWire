@@ -1,0 +1,25 @@
+# awaitDrained waits may time out (TIMEOUTS=True)
+
+### C3: 1 worker across 3 rotations + emergency + awaitDrained [fast: hashed DFS]
+states explored: 2038465, terminal states: 748
+  safety refs_underflow                    : holds
+  safety wipe_with_outstanding_lease       : holds
+  safety process_after_key_wipe            : holds
+  safety send_with_wiped_key               : holds
+  safety send_after_drain_confirmed        : holds
+  safety dup_send                          : holds
+  safety dup_ticket                        : holds
+  safety ticket_after_closing              : holds
+  safety stale_enqueued                    : holds
+  safety superseded_claimed_for_send       : holds
+  safety pending_of_discarded_generation   : holds
+  safety resurrection                      : holds
+  safety await_nil_unsound                 : holds
+  safety material_ticket_reuse             : holds
+  deadlock: none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_open          : REACHABLE
+  observation dispatch_after_fault_latch    : unreachable
+  observation process_after_session_closed  : REACHABLE
+  observation poisoned_generation_packet_sent: unreachable
+exit=0 elapsed 363s

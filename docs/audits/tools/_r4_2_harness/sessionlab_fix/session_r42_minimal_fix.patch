@@ -1,0 +1,163 @@
+--- a/internal/qazwireexp/sessionlab/session.go
++++ b/internal/qazwireexp/sessionlab/session.go
+@@ -34,8 +34,14 @@
+ 	errTicket          = errors.New("sessionlab: ticket absent, foreign or already spent")
+ 	errProviderReuse   = errors.New("sessionlab: provider has already been claimed")
+ 	errWipeUnconfirmed = fmt.Errorf("%w: wipe started but is unconfirmed", errDeadline)
++	errBacklog         = errors.New("sessionlab: superseded generations pinned; external isolation required")
+ )
+ 
++// maxPinnedSuperseded bounds generations older than the one being retired that
++// are still held by an unfinished process() or send(). Beyond it, rotate fails
++// closed (FIX R42-05). Hung wipe() calls are NOT bounded by this (see R4.2 §C).
++const maxPinnedSuperseded = 4
++
+ // Unexported test doubles. Neither process nor wipe provides cryptography.
+ // Per-provider one-time ownership avoids an immortal process-global map.
+ type providerClaim struct{ claimed atomic.Bool }
+@@ -292,6 +298,7 @@
+ const (
+ 	faultPoisoned   = uint64(1) << 0
+ 	faultWipeFailed = uint64(1) << 1
++	faultBacklog    = uint64(1) << 2
+ )
+ 
+ func (s *session) newKeyOwned(p processor, max uint64) *key {
+@@ -299,6 +306,7 @@
+ 	k.gate.onFail = func() {
+ 		// Record fault synchronously BEFORE the done channel is closed.
+ 		// Async shutdown cannot erase fault evidence if generations are pruned.
++		s.e.gate.beginClose() // FIX R42-06: no dispatch is admitted after the latch
+ 		s.faults.Or(faultWipeFailed)
+ 		go s.beginEmergency()
+ 	}
+@@ -323,43 +331,48 @@
+ }
+ 
+ func (s *session) prepare(payload []byte) (packet, error) {
+-	var k *key
+-	var pkt packet
+-	var err error
++	err := errClosed
+ 	for attempt := 0; attempt < 2; attempt++ {
+ 		s.mu.RLock()
+ 		if s.closed || s.faults.Load()&faultWipeFailed != 0 {
+ 			s.mu.RUnlock()
+ 			return packet{}, errClosed
+ 		}
+-		k = s.k
++		k := s.k
+ 		s.mu.RUnlock()
++		var pkt packet
+ 		pkt, err = k.seal(payload)
+-		if !errors.Is(err, errClosed) {
++		if errors.Is(err, errClosed) {
++			continue
++		}
++		if err != nil {
+ 			break
+ 		}
+-	}
+-	if err != nil {
+-		if errors.Is(err, errProviderFault) {
+-			s.faults.Or(faultPoisoned)
+-			s.beginEmergency()
++		s.mu.Lock()
++		// An old in-flight operation can outlive TWO rotations: never admit
++		// output from a generation older than the immediately previous one.
++		if s.closed || (k != s.k && k != s.previous) || k.gate.state.Load()&discardFlag != 0 {
++			superseded := !s.closed // FIX R42-07: rotation, not shutdown -> retry
++			s.mu.Unlock()
++			pkt.guard.used.Store(true)
++			k.gate.leave()
++			clear(pkt.data)
++			err = errClosed
++			if superseded {
++				continue
++			}
++			return packet{}, errClosed
+ 		}
+-		return packet{}, err
+-	}
+-	s.mu.Lock()
+-	// An old in-flight operation can outlive TWO rotations: never admit
+-	// output from a generation older than the immediately previous one.
+-	if s.closed || (k != s.k && k != s.previous) || k.gate.state.Load()&discardFlag != 0 {
++		s.pending[pkt.guard] = pkt
+ 		s.mu.Unlock()
+-		pkt.guard.used.Store(true)
+-		k.gate.leave()
+-		clear(pkt.data)
+-		return packet{}, errClosed
++		pkt.data = nil // the queue (not its caller) owns the output buffer
++		return pkt, nil
+ 	}
+-	s.pending[pkt.guard] = pkt
+-	s.mu.Unlock()
+-	pkt.data = nil // the queue (not its caller) owns the output buffer
+-	return pkt, nil
++	if errors.Is(err, errProviderFault) {
++		s.faults.Or(faultPoisoned)
++		s.beginEmergency()
++	}
++	return packet{}, err
+ }
+ 
+ // discard releases a queued synthetic packet without sending it. It is safe
+@@ -384,6 +397,7 @@
+ 	// resume dispatch with the same key after catching the panic.
+ 	defer func() {
+ 		if recover() != nil {
++			s.faults.Or(faultPoisoned) // FIX R42-04
+ 			s.beginEmergency()
+ 			err = errProviderFault
+ 		}
+@@ -439,15 +453,27 @@
+ 		}
+ 	}
+ 	live := s.keys[:0]
++	pinned := 0
+ 	for _, existing := range s.keys {
+ 		select {
+ 		case <-existing.gate.done:
+ 			// A completed wipe was confirmed; its fault remains latched.
+ 		default:
+ 			live = append(live, existing)
++			if existing != old && existing.gate.state.Load()&referenceMask != 0 {
++				pinned++
++			}
+ 		}
+ 	}
++	clear(s.keys[len(live):cap(s.keys)]) // FIX R42-10: no pruned generation stays reachable
+ 	fresh := s.newKeyOwned(p, maxTickets)
++	if pinned > maxPinnedSuperseded { // FIX R42-05: fail closed, keep p managed
++		s.keys = append(live, fresh)
++		s.faults.Or(faultBacklog)
++		s.e.gate.beginClose()
++		s.emergencyLocked()
++		return errBacklog
++	}
+ 	s.previous = old
+ 	s.k = fresh
+ 	s.keys = append(live, fresh)
+@@ -460,6 +486,12 @@
+ func (s *session) beginEmergency() {
+ 	s.e.gate.beginClose()
+ 	s.mu.Lock()
++	s.emergencyLocked()
++	s.mu.Unlock()
++}
++
++// emergencyLocked requires s.mu held for writing.
++func (s *session) emergencyLocked() {
+ 	s.closed = true
+ 	// Cancel all queued synthetic records and release their key leases.
+ 	for guard, queued := range s.pending {
+@@ -472,7 +504,6 @@
+ 	for _, k := range s.keys {
+ 		k.gate.beginDiscard()
+ 	}
+-	s.mu.Unlock()
+ }
+ 
+ func (s *session) awaitDrained(ctx context.Context) error {

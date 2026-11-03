@@ -1,0 +1,104 @@
+=== RUN   TestR42_01a_TwoProvidersShareOneMaterial
+    r42_blackbox_test.go:73: CONFIRMED R42-01a: two provider objects over one material were both claimed; wiping session 1 erased the material still used by live session 2 (process on wiped material)
+--- PASS: TestR42_01a_TwoProvidersShareOneMaterial (0.00s)
+=== RUN   TestR42_01b_CopyBeforeClaimBypassesOneTimeClaim
+    r42_blackbox_test.go:90: CONFIRMED R42-01b: a pre-claim struct copy carries an unclaimed providerClaim; both objects (same material pointer) were accepted
+--- PASS: TestR42_01b_CopyBeforeClaimBypassesOneTimeClaim (0.00s)
+=== RUN   TestR42_01c_SelfCertifiedClaim
+    r42_blackbox_test.go:114: CONFIRMED R42-01c: claim() is implemented by the provider being checked; a provider returning true is accepted by rotate() on the same session and by a second session (R41-01 bypass)
+--- PASS: TestR42_01c_SelfCertifiedClaim (0.00s)
+=== RUN   TestR42_02_SameMaterialNewGenerationRepeatsTickets
+    r42_blackbox_test.go:143: CONFIRMED R42-02: (material id, ticket) = [42 0] processed in generation 0 and again in generation 1; tickets restart at 0 per generation and nothing binds them to the material or an epoch (nonce reuse class)
+--- PASS: TestR42_02_SameMaterialNewGenerationRepeatsTickets (0.00s)
+=== RUN   TestR42_03_ValueReceiverWipeOnPointerProvider
+    r42_blackbox_test.go:176: CONFIRMED R42-03: *vrProc passes validProvider (pointer kind); its value-receiver wipe() cleared a copy; awaitDrained returned nil while p.material is intact (0xa5)
+--- PASS: TestR42_03_ValueReceiverWipeOnPointerProvider (0.00s)
+=== RUN   TestR42_04_SinkPanicNotLatched
+    r42_blackbox_test.go:193: CONFIRMED R42-04: dispatch returned errProviderFault for a sink panic, but faultState() = (false, false): the fault signal is lost for an orchestrator that polls faultState
+--- PASS: TestR42_04_SinkPanicNotLatched (0.00s)
+=== RUN   TestR42_05_HungOperationsPinGenerationsUnbounded
+    r42_blackbox_test.go:238: CONFIRMED R42-05: 64 rotations with one hung operation each keep 65 generations (and their providers) alive; no cap exists; emergency cannot finish (sessionlab: shutdown not complete; external isolation required) -> only external Stage D bounds it
+--- PASS: TestR42_05_HungOperationsPinGenerationsUnbounded (0.06s)
+=== RUN   TestR42_10_PrunedKeysRetainedInSliceCapacity
+    r42_blackbox_test.go:311: CONFIRMED R42-10: after pruning len(s.keys)=3 cap=16; 4 pruned (already wiped) generations remain reachable through the backing array, so their providers cannot be collected
+--- PASS: TestR42_10_PrunedKeysRetainedInSliceCapacity (0.00s)
+=== RUN   TestR42_01a_TwoProvidersShareOneMaterial
+    r42_blackbox_test.go:73: CONFIRMED R42-01a: two provider objects over one material were both claimed; wiping session 1 erased the material still used by live session 2 (process on wiped material)
+--- PASS: TestR42_01a_TwoProvidersShareOneMaterial (0.00s)
+=== RUN   TestR42_01b_CopyBeforeClaimBypassesOneTimeClaim
+    r42_blackbox_test.go:90: CONFIRMED R42-01b: a pre-claim struct copy carries an unclaimed providerClaim; both objects (same material pointer) were accepted
+--- PASS: TestR42_01b_CopyBeforeClaimBypassesOneTimeClaim (0.00s)
+=== RUN   TestR42_01c_SelfCertifiedClaim
+    r42_blackbox_test.go:114: CONFIRMED R42-01c: claim() is implemented by the provider being checked; a provider returning true is accepted by rotate() on the same session and by a second session (R41-01 bypass)
+--- PASS: TestR42_01c_SelfCertifiedClaim (0.00s)
+=== RUN   TestR42_02_SameMaterialNewGenerationRepeatsTickets
+    r42_blackbox_test.go:143: CONFIRMED R42-02: (material id, ticket) = [42 0] processed in generation 0 and again in generation 1; tickets restart at 0 per generation and nothing binds them to the material or an epoch (nonce reuse class)
+--- PASS: TestR42_02_SameMaterialNewGenerationRepeatsTickets (0.00s)
+=== RUN   TestR42_03_ValueReceiverWipeOnPointerProvider
+    r42_blackbox_test.go:176: CONFIRMED R42-03: *vrProc passes validProvider (pointer kind); its value-receiver wipe() cleared a copy; awaitDrained returned nil while p.material is intact (0xa5)
+--- PASS: TestR42_03_ValueReceiverWipeOnPointerProvider (0.00s)
+=== RUN   TestR42_04_SinkPanicNotLatched
+    r42_blackbox_test.go:193: CONFIRMED R42-04: dispatch returned errProviderFault for a sink panic, but faultState() = (false, false): the fault signal is lost for an orchestrator that polls faultState
+--- PASS: TestR42_04_SinkPanicNotLatched (0.00s)
+=== RUN   TestR42_05_HungOperationsPinGenerationsUnbounded
+    r42_blackbox_test.go:238: CONFIRMED R42-05: 64 rotations with one hung operation each keep 65 generations (and their providers) alive; no cap exists; emergency cannot finish (sessionlab: shutdown not complete; external isolation required) -> only external Stage D bounds it
+--- PASS: TestR42_05_HungOperationsPinGenerationsUnbounded (0.05s)
+=== RUN   TestR42_10_PrunedKeysRetainedInSliceCapacity
+    r42_blackbox_test.go:311: CONFIRMED R42-10: after pruning len(s.keys)=3 cap=16; 4 pruned (already wiped) generations remain reachable through the backing array, so their providers cannot be collected
+--- PASS: TestR42_10_PrunedKeysRetainedInSliceCapacity (0.00s)
+=== RUN   TestR42_01a_TwoProvidersShareOneMaterial
+    r42_blackbox_test.go:73: CONFIRMED R42-01a: two provider objects over one material were both claimed; wiping session 1 erased the material still used by live session 2 (process on wiped material)
+--- PASS: TestR42_01a_TwoProvidersShareOneMaterial (0.00s)
+=== RUN   TestR42_01b_CopyBeforeClaimBypassesOneTimeClaim
+    r42_blackbox_test.go:90: CONFIRMED R42-01b: a pre-claim struct copy carries an unclaimed providerClaim; both objects (same material pointer) were accepted
+--- PASS: TestR42_01b_CopyBeforeClaimBypassesOneTimeClaim (0.00s)
+=== RUN   TestR42_01c_SelfCertifiedClaim
+    r42_blackbox_test.go:114: CONFIRMED R42-01c: claim() is implemented by the provider being checked; a provider returning true is accepted by rotate() on the same session and by a second session (R41-01 bypass)
+--- PASS: TestR42_01c_SelfCertifiedClaim (0.00s)
+=== RUN   TestR42_02_SameMaterialNewGenerationRepeatsTickets
+    r42_blackbox_test.go:143: CONFIRMED R42-02: (material id, ticket) = [42 0] processed in generation 0 and again in generation 1; tickets restart at 0 per generation and nothing binds them to the material or an epoch (nonce reuse class)
+--- PASS: TestR42_02_SameMaterialNewGenerationRepeatsTickets (0.00s)
+=== RUN   TestR42_03_ValueReceiverWipeOnPointerProvider
+    r42_blackbox_test.go:176: CONFIRMED R42-03: *vrProc passes validProvider (pointer kind); its value-receiver wipe() cleared a copy; awaitDrained returned nil while p.material is intact (0xa5)
+--- PASS: TestR42_03_ValueReceiverWipeOnPointerProvider (0.00s)
+=== RUN   TestR42_04_SinkPanicNotLatched
+    r42_blackbox_test.go:193: CONFIRMED R42-04: dispatch returned errProviderFault for a sink panic, but faultState() = (false, false): the fault signal is lost for an orchestrator that polls faultState
+--- PASS: TestR42_04_SinkPanicNotLatched (0.00s)
+=== RUN   TestR42_05_HungOperationsPinGenerationsUnbounded
+    r42_blackbox_test.go:238: CONFIRMED R42-05: 64 rotations with one hung operation each keep 65 generations (and their providers) alive; no cap exists; emergency cannot finish (sessionlab: shutdown not complete; external isolation required) -> only external Stage D bounds it
+--- PASS: TestR42_05_HungOperationsPinGenerationsUnbounded (0.05s)
+=== RUN   TestR42_10_PrunedKeysRetainedInSliceCapacity
+    r42_blackbox_test.go:311: CONFIRMED R42-10: after pruning len(s.keys)=3 cap=16; 4 pruned (already wiped) generations remain reachable through the backing array, so their providers cannot be collected
+--- PASS: TestR42_10_PrunedKeysRetainedInSliceCapacity (0.00s)
+PASS
+ok  	harness/internal/qazwireexp/sessionlab	1.193s
+=== RUN   TestR42I_07_SecondRotationBetweenSealAndFence
+    r42_interleave_test.go:60: CONFIRMED R42-07 (LOW): second rotation between seal and fence -> packet burnt, prepare returns errClosed without retry although the session is open
+--- PASS: TestR42I_07_SecondRotationBetweenSealAndFence (0.00s)
+=== RUN   TestR42I_06_DispatchAfterLatchBeforeEmergency
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+--- PASS: TestR42I_06_DispatchAfterLatchBeforeEmergency (0.00s)
+=== RUN   TestR42I_06b_QueuedPacketSentInsideLatchWindow
+    r42_interleave_test.go:152: CONFIRMED R42-06 (LOW): WIPE_FAILED latched, emergency not yet started: a queued packet of another generation was sent (dispatch is fenced only by the asynchronous egress close)
+--- PASS: TestR42I_06b_QueuedPacketSentInsideLatchWindow (0.00s)
+=== RUN   TestR42I_07_SecondRotationBetweenSealAndFence
+    r42_interleave_test.go:60: CONFIRMED R42-07 (LOW): second rotation between seal and fence -> packet burnt, prepare returns errClosed without retry although the session is open
+--- PASS: TestR42I_07_SecondRotationBetweenSealAndFence (0.00s)
+=== RUN   TestR42I_06_DispatchAfterLatchBeforeEmergency
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+--- PASS: TestR42I_06_DispatchAfterLatchBeforeEmergency (0.00s)
+=== RUN   TestR42I_06b_QueuedPacketSentInsideLatchWindow
+    r42_interleave_test.go:152: CONFIRMED R42-06 (LOW): WIPE_FAILED latched, emergency not yet started: a queued packet of another generation was sent (dispatch is fenced only by the asynchronous egress close)
+--- PASS: TestR42I_06b_QueuedPacketSentInsideLatchWindow (0.00s)
+=== RUN   TestR42I_07_SecondRotationBetweenSealAndFence
+    r42_interleave_test.go:60: CONFIRMED R42-07 (LOW): second rotation between seal and fence -> packet burnt, prepare returns errClosed without retry although the session is open
+--- PASS: TestR42I_07_SecondRotationBetweenSealAndFence (0.00s)
+=== RUN   TestR42I_06_DispatchAfterLatchBeforeEmergency
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+--- PASS: TestR42I_06_DispatchAfterLatchBeforeEmergency (0.00s)
+=== RUN   TestR42I_06b_QueuedPacketSentInsideLatchWindow
+    r42_interleave_test.go:152: CONFIRMED R42-06 (LOW): WIPE_FAILED latched, emergency not yet started: a queued packet of another generation was sent (dispatch is fenced only by the asynchronous egress close)
+--- PASS: TestR42I_06b_QueuedPacketSentInsideLatchWindow (0.00s)
+PASS
+ok  	harness/internal/qazwireexp/sessionlab_instr	1.027s
+exit=0

@@ -1,0 +1,44 @@
+# model of the PATCHED session (session_r42_minimal_fix.patch)
+
+### C4: 2 workers + 2 rotations, no emergency (retired generations must finish)
+states explored: 416740, terminal states: 250
+  safety refs_underflow                    : holds
+  safety wipe_with_outstanding_lease       : holds
+  safety process_after_key_wipe            : holds
+  safety send_with_wiped_key               : holds
+  safety send_after_drain_confirmed        : holds
+  safety dup_send                          : holds
+  safety dup_ticket                        : holds
+  safety ticket_after_closing              : holds
+  safety stale_enqueued                    : holds
+  safety superseded_claimed_for_send       : holds
+  safety pending_of_discarded_generation   : holds
+  safety resurrection                      : holds
+  safety await_nil_unsound                 : holds
+  safety material_ticket_reuse             : holds
+  deadlock: none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_open          : REACHABLE
+  observation dispatch_after_fault_latch    : unreachable
+  observation process_after_session_closed  : unreachable
+  observation poisoned_generation_packet_sent: unreachable
+
+  shortest interleaving for errclosed_while_open:
+     1. W0: prepare: k := k0 (attempt 0)
+     2. R: rotate: lock (new k1)
+     3. R: rotate: skip k0
+     4. R: rotate: discard marks done
+     5. R: rotate: flush done
+     6. R: rotate: prune -> ('k0',); current k1, previous k0
+     7. R: rotate: k0.beginClose
+     8. W0: seal(k0): enter refused -> retry
+     9. R: rotate: unlock
+    10. W0: prepare: k := k1 (attempt 1)
+    11. R: rotate: lock (new k2)
+    12. R: rotate: k0.beginDiscard
+    13. R: rotate: skip k1
+    14. R: rotate: discard marks done
+    15. R: rotate: flush done
+    16. R: rotate: prune -> ('k0', 'k1'); current k2, previous k1
+    17. R: rotate: k1.beginClose
+    18. W0: seal(k1): enter refused -> errClosed
