@@ -35,7 +35,13 @@ func requestWithTimeout(sock string, op Opcode, id uint32) (uint64, error) {
 }
 
 func TestM17_RealChildProcessUsesVersionedUnixIPC(t *testing.T) {
-	sock := filepath.Join(t.TempDir(), "klmproc.sock")
+	dir := t.TempDir()
+	// Go testing.TempDir subdirectories may use 0755; explicit 0700 is
+	// required by the worker endpoint policy, not inferred from t.TempDir.
+	if err := os.Chmod(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	sock := filepath.Join(dir, "klmproc.sock")
 	null, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -118,7 +124,11 @@ func TestM17_SocketDirectoryOwnershipAndPrivacy(t *testing.T) {
 	if err := ServeSynthetic(context.Background(), "relative.sock"); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("relative endpoint accepted: %v", err)
 	}
-	target := filepath.Join(t.TempDir(), "existing.sock")
+	privateDir := t.TempDir()
+	if err := os.Chmod(privateDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(privateDir, "existing.sock")
 	if err := os.WriteFile(target, []byte("do not replace"), 0600); err != nil {
 		t.Fatal(err)
 	}
