@@ -12,9 +12,9 @@ import (
 
 func TestM171_ParsePopulatedStrictly(t *testing.T) {
 	table := []struct {
-		in     string
-		want   bool
-		err    bool
+		in   string
+		want bool
+		err  bool
 	}{
 		{"populated 1\nfrozen 0\n", true, false},
 		{"frozen 0\npopulated 0\n", false, false},
