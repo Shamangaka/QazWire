@@ -24,21 +24,21 @@ const (
 )
 
 var (
-	errClosed        = errors.New("sessionlab: session closing")
-	errExhausted     = errors.New("sessionlab: synthetic counter exhausted")
-	errInvalid       = errors.New("sessionlab: invalid synthetic dependency or limit")
-	errDeadline      = errors.New("sessionlab: shutdown not complete; external isolation required")
-	errNoDeadline    = errors.New("sessionlab: shutdown wait requires a deadline")
-	errProviderFault = errors.New("sessionlab: synthetic provider fault; key poisoned")
-	errWipeFailed    = errors.New("sessionlab: synthetic wipe failed; destruction NOT confirmed")
-	errTicket        = errors.New("sessionlab: ticket absent, foreign or already spent")
-	errProviderReuse = errors.New("sessionlab: provider has already been claimed")
+	errClosed          = errors.New("sessionlab: session closing")
+	errExhausted       = errors.New("sessionlab: synthetic counter exhausted")
+	errInvalid         = errors.New("sessionlab: invalid synthetic dependency or limit")
+	errDeadline        = errors.New("sessionlab: shutdown not complete; external isolation required")
+	errNoDeadline      = errors.New("sessionlab: shutdown wait requires a deadline")
+	errProviderFault   = errors.New("sessionlab: synthetic provider fault; key poisoned")
+	errWipeFailed      = errors.New("sessionlab: synthetic wipe failed; destruction NOT confirmed")
+	errTicket          = errors.New("sessionlab: ticket absent, foreign or already spent")
+	errProviderReuse   = errors.New("sessionlab: provider has already been claimed")
 	errWipeUnconfirmed = fmt.Errorf("%w: wipe started but is unconfirmed", errDeadline)
 )
 
 // Unexported test doubles. Neither process nor wipe provides cryptography.
 // Per-provider one-time ownership avoids an immortal process-global map.
-type providerClaim struct { claimed atomic.Bool }
+type providerClaim struct{ claimed atomic.Bool }
 func (c *providerClaim) claim() bool { return c.claimed.CompareAndSwap(false, true) }
 
 // The test-only provider is defined in this package; real providers must be
@@ -119,7 +119,9 @@ func (g *gate) startFinish() {
 				defer func() {
 					if recover() != nil {
 						g.state.Or(failedFlag)
-						if g.onFail != nil { g.onFail() }
+						if g.onFail != nil {
+							g.onFail()
+						}
 					}
 				}()
 				g.finish()
@@ -147,7 +149,9 @@ func (g *gate) poison() {
 // Used for emergencies and superseded key generations.
 func (g *gate) beginDiscard() {
 	state := g.state.Or(closingFlag|discardFlag) | closingFlag | discardFlag
-	if state&referenceMask == 0 { g.startFinish() }
+	if state&referenceMask == 0 {
+		g.startFinish()
+	}
 }
 
 // await only OBSERVES a previously initiated close; it never triggers one.
@@ -165,7 +169,9 @@ func (g *gate) await(ctx context.Context) error {
 		}
 		return nil
 	case <-ctx.Done():
-		if g.state.Load()&finishedFlag != 0 { return errWipeUnconfirmed }
+		if g.state.Load()&finishedFlag != 0 {
+			return errWipeUnconfirmed
+		}
 		return errDeadline
 	}
 }
@@ -275,7 +281,9 @@ func validDependency(v any) bool {
 }
 
 func validProvider(p processor) bool {
-	if p == nil { return false }
+	if p == nil {
+		return false
+	}
 	v := reflect.ValueOf(p)
 	return v.Kind() == reflect.Pointer && !v.IsNil()
 }
@@ -304,7 +312,9 @@ func newSession(p processor, w wire, maxTickets uint64) (*session, error) {
 	if !validProvider(p) || !validDependency(w) || maxTickets == 0 {
 		return nil, errInvalid
 	}
-	if !p.claim() { return nil, errProviderReuse }
+	if !p.claim() {
+		return nil, errProviderReuse
+	}
 	s := &session{pending: make(map[*packetGuard]packet), e: newEgress(w)}
 	k := s.newKeyOwned(p, maxTickets)
 	s.k, s.keys = k, []*key{k}
