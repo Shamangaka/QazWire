@@ -248,7 +248,7 @@ func killVerified(cg, unit string, mainPID, escapedPID int, memoryBytes uint64, 
 
 // processExited is a non-blocking check of one specific Linux task identity.
 // Poll reports readable on task exit (even if the task remains a zombie).
- // Never use Kill(pid,0) here: PID reuse could invalidate that observation.
+// Never use Kill(pid,0) here: PID reuse could invalidate that observation.
 func processExited(fd int) (bool, error) {
 	if fd < 0 {
 		return false, errors.New("invalid pidfd")
