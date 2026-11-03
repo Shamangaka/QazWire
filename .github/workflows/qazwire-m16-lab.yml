@@ -3,9 +3,6 @@ on:
   push:
     branches:
       - feature/m1-6-exclusive-key-ownership
-  pull_request:
-    branches:
-      - feature/m1-5-2-r41-owned-providers
 
 permissions:
   contents: read
@@ -33,6 +30,18 @@ jobs:
 
       - name: M1.6 ten race repetitions
         run: go test -tags qazwire_exp -race -count=10 ./internal/qazwireexp/klm16
+
+      - name: Reject external owner copy and forged ticket at compile time
+        run: |
+          set -euo pipefail
+          set +e
+          go test -tags qazwire_exp ./internal/qazwireexp/klm16/testdata/negative > /tmp/m16-negative-build.log 2>&1
+          rc=$?
+          set -e
+          cat /tmp/m16-negative-build.log
+          test "$rc" -ne 0
+          grep -q 'cannot indirect owner' /tmp/m16-negative-build.log
+          grep -q 'cannot refer to unexported field state' /tmp/m16-negative-build.log
 
       - name: Full experimental tests
         run: go test -tags qazwire_exp -count=1 ./...
