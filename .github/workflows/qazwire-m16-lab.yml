@@ -1,0 +1,47 @@
+name: QazWire M1.6 synthetic ownership lab
+on:
+  push:
+    branches:
+      - feature/m1-6-exclusive-key-ownership
+  pull_request:
+    branches:
+      - feature/m1-5-2-r41-owned-providers
+
+permissions:
+  contents: read
+
+jobs:
+  klm16:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Environment
+        run: |
+          go version
+          git rev-parse HEAD
+
+      - name: Format and whitespace
+        run: |
+          set -euo pipefail
+          test -z "$(gofmt -l internal/qazwireexp/klm16/*.go)"
+          git diff --check
+
+      - name: M1.6 ten race repetitions
+        run: go test -tags qazwire_exp -race -count=10 ./internal/qazwireexp/klm16
+
+      - name: Full experimental tests
+        run: go test -tags qazwire_exp -count=1 ./...
+
+      - name: Full experimental race tests
+        run: go test -tags qazwire_exp -race -count=1 ./...
+
+      - name: Vet
+        run: go vet -tags qazwire_exp ./...
+
+      - name: Untagged upstream
+        run: go test -count=1 ./...
