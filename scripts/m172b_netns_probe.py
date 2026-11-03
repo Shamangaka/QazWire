@@ -8,7 +8,9 @@ configure host network interfaces or host nftables from this helper.
 import argparse
 import ipaddress
 import os
+import pathlib
 import select
+import signal
 import socket
 import subprocess
 import sys
@@ -98,6 +100,30 @@ def refresh(pidfile, nft_path, period):
     return 0
 
 
+
+def kill_owned_refresher(pid):
+    """Kill a *pinned* PID, only if it is our lab refresher in this netns.
+
+    Runs as privileged helper inside the newly created worker lab namespace.
+    Never signals a host process or trusts the bare numeric PID alone.
+    """
+    if pid <= 1 or pid == os.getpid():
+        raise ValueError("invalid refresher PID")
+    fd = os.pidfd_open(pid, 0)
+    try:
+        target_ns = os.readlink(f"/proc/{pid}/ns/net")
+        our_ns = os.readlink("/proc/self/ns/net")
+        cmdline = pathlib.Path(f"/proc/{pid}/cmdline").read_bytes()
+        if (target_ns != our_ns or
+                b"m172b_netns_probe.py" not in cmdline or
+                b"refresh" not in cmdline):
+            raise PermissionError("pidfd target is not lab refresher in this netns")
+        signal.pidfd_send_signal(fd, signal.SIGKILL, None, 0)
+        print("PIDFD_SIGKILL_SENT", flush=True)
+    finally:
+        os.close(fd)
+
+
 def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="mode", required=True)
@@ -110,6 +136,8 @@ def main():
     r.add_argument("--pidfile", required=True)
     r.add_argument("--nft", required=True)
     r.add_argument("--period", type=float, default=0.25)
+    k = sub.add_parser("kill-refresher")
+    k.add_argument("--pid", type=int, required=True)
     args = p.parse_args()
     if args.mode == "serve":
         return serve(args.pidfile)
@@ -117,6 +145,9 @@ def main():
         if not 0.05 <= args.timeout <= 2:
             p.error("timeout must be between 0.05 and 2")
         return 0 if probe(args.port, args.timeout) else 1
+    if args.mode == "kill-refresher":
+        kill_owned_refresher(args.pid)
+        return 0
     if not 0.1 <= args.period <= 0.5:
         p.error("renewal period must be between 0.1 and 0.5")
     return refresh(args.pidfile, args.nft, args.period)
