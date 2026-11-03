@@ -112,11 +112,14 @@ func privateSocketDirectory(path string) error {
 		return err
 	}
 	if !info.IsDir() || info.Mode().Perm()&0077 != 0 {
-		return ErrUnsafeDirectory
+		return fmt.Errorf("%w: parent mode=%#o", ErrUnsafeDirectory, info.Mode().Perm())
 	}
 	st, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || int(st.Uid) != os.Getuid() {
-		return ErrUnsafeDirectory
+	if !ok {
+		return fmt.Errorf("%w: missing Linux stat metadata", ErrUnsafeDirectory)
+	}
+	if int(st.Uid) != os.Getuid() {
+		return fmt.Errorf("%w: owner=%d worker_uid=%d", ErrUnsafeDirectory, st.Uid, os.Getuid())
 	}
 	// The socket itself must not replace any existing file or symlink.
 	if _, err := os.Lstat(path); err == nil {
