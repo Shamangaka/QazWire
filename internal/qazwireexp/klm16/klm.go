@@ -37,7 +37,7 @@ var (
 // They are fixed safety caps, not production traffic-sizing parameters.
 const (
 	maxInFlightPrepares = 32
-	maxPendingTickets  = 1024
+	maxPendingTickets   = 1024
 )
 
 var nextSessionID atomic.Uint64
@@ -124,15 +124,15 @@ type LabRecord struct {
 
 // Stats is a consistent, point-in-time snapshot of the synthetic session.
 type Stats struct {
-	SessionID    uint64
-	CurrentEpoch uint64
-	LiveKeys     int
-	Pending      int
-	PendingBytes uint64
-	InFlight     int
+	SessionID     uint64
+	CurrentEpoch  uint64
+	LiveKeys      int
+	Pending       int
+	PendingBytes  uint64
+	InFlight      int
 	ReservedBytes uint64
-	Closed       bool
-	Faulted      bool
+	Closed        bool
+	Faulted       bool
 }
 
 // Session is a sealed PUBLIC CAPABILITY, not a copyable concrete owner.
@@ -152,19 +152,19 @@ type Session interface {
 // labSession owns all material and tickets; mu protects its fields.
 // No foreign callback executes while mu is held.
 type labSession struct {
-	mu           sync.Mutex
-	id           uint64
-	current      *generation
-	previous     *generation
-	generations  []*generation
-	pending      map[*ticketState]struct{}
-	pendingBytes uint64
+	mu            sync.Mutex
+	id            uint64
+	current       *generation
+	previous      *generation
+	generations   []*generation
+	pending       map[*ticketState]struct{}
+	pendingBytes  uint64
 	reservedBytes uint64
-	inFlight     int
-	maxBytes     uint64
-	maxPinned    int
-	closed       bool
-	fault        error
+	inFlight      int
+	maxBytes      uint64
+	maxPinned     int
+	closed        bool
+	fault         error
 
 	// Test-only scheduler hook. It is configured before concurrent use,
 	// invoked WITHOUT mu, and never exported to callers.
@@ -540,14 +540,14 @@ func (s *labSession) Snapshot() Stats {
 		}
 	}
 	return Stats{
-		SessionID:    s.id,
-		CurrentEpoch: s.current.epoch,
-		LiveKeys:     live,
-		Pending:      len(s.pending),
-		PendingBytes: s.pendingBytes,
-		InFlight:     s.inFlight,
+		SessionID:     s.id,
+		CurrentEpoch:  s.current.epoch,
+		LiveKeys:      live,
+		Pending:       len(s.pending),
+		PendingBytes:  s.pendingBytes,
+		InFlight:      s.inFlight,
 		ReservedBytes: s.reservedBytes,
-		Closed:       s.closed,
-		Faulted:      s.fault != nil,
+		Closed:        s.closed,
+		Faulted:       s.fault != nil,
 	}
 }
