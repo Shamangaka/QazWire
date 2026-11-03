@@ -53,10 +53,15 @@ func TestR412_GrandparentInFlightDroppedOnSecondRotation(t *testing.T) {
 	s, err := newSession(p, w, 10)
 	if err != nil { t.Fatal(err) }
 
-	finish := make(chan error, 1)
+	grandparent := s.k // capture identity before rotations; s.keys can be pruned
+	type prepared struct {
+		packet packet
+		err error
+	}
+	finish := make(chan prepared, 1)
 	go func() {
-		_, err := s.prepare([]byte("grandparent"))
-		finish <- err
+		pkt, err := s.prepare([]byte("grandparent"))
+		finish <- prepared{packet: pkt, err: err}
 	}()
 	select {
 	case <-p.started:
@@ -67,27 +72,58 @@ func TestR412_GrandparentInFlightDroppedOnSecondRotation(t *testing.T) {
 	if err := s.rotate(&fakeProcessor{}, 10); err != nil { t.Fatal(err) }
 	close(p.release)
 
+	var result prepared
 	select {
-	case err := <-finish:
-		if !errors.Is(err, errClosed) {
-			t.Fatalf("grandparent output was admitted: %v", err)
+	case result = <-finish:
+		if result.err != nil && !errors.Is(result.err, errClosed) {
+			t.Fatalf("unexpected prepare error: %v", result.err)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("older generation never completed")
 	}
+	// prepare may retry a rejected grandparent operation on the CURRENT key.
+	// A successful retry is allowed, but the returned ticket MUST NOT belong
+	// to the grandparent. This distinguishes actual stale-key emission from
+	// a valid retry (the original test wrongly required errClosed).
+	wantSends := int64(0)
+	if result.err == nil {
+		if result.packet.guard == nil {
+			t.Fatal("successful retry returned no ticket")
+		}
+		s.mu.RLock()
+		newest := s.k
+		s.mu.RUnlock()
+		if result.packet.guard.owner != newest {
+			t.Fatal("packet does not belong to the current generation")
+		}
+		if err := s.dispatch(result.packet); err != nil {
+			t.Fatalf("current-generation retry not dispatchable: %v", err)
+		}
+		wantSends = 1
+	}
 	s.mu.RLock()
 	for _, queued := range s.pending {
-		if queued.guard.owner == s.keys[0] {
+		if queued.guard.owner == grandparent {
 			s.mu.RUnlock()
 			t.Fatal("grandparent packet reentered queue")
 		}
 	}
 	s.mu.RUnlock()
-	if w.count.Load() != 0 { t.Fatal("old packet was sent") }
+	if got := w.count.Load(); got != wantSends {
+		t.Fatalf("unexpected send count: got %d, want %d", got, wantSends)
+	}
 	s.beginEmergency()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	if err := s.awaitDrained(ctx); err != nil { t.Fatal(err) }
+	if err := s.awaitDrained(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := grandparent.gate.await(ctx); err != nil {
+		t.Fatalf("grandparent did not drain: %v", err)
+	}
+	if p.wipeCount.Load() != 1 {
+		t.Fatalf("grandparent wiped %d times, want 1", p.wipeCount.Load())
+	}
 }
 
 func TestR412_ProviderReuseWithoutGlobalRetention(t *testing.T) {
