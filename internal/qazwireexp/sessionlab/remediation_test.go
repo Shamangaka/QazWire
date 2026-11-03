@@ -13,6 +13,7 @@ import (
 )
 
 type remediationProcessor struct {
+	providerClaim
 	action int
 	wipes  atomic.Int64
 }

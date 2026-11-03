@@ -8,6 +8,7 @@ package sessionlab
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -18,24 +19,35 @@ const (
 	finishedFlag  = uint64(1) << 62 // finishing has been CLAIMED, not completed
 	poisonFlag    = uint64(1) << 61
 	failedFlag    = uint64(1) << 60
-	referenceMask = failedFlag - 1
+	discardFlag   = uint64(1) << 59
+	referenceMask = discardFlag - 1
 )
 
 var (
-	errClosed        = errors.New("sessionlab: session closing")
-	errExhausted     = errors.New("sessionlab: synthetic counter exhausted")
-	errInvalid       = errors.New("sessionlab: invalid synthetic dependency or limit")
-	errDeadline      = errors.New("sessionlab: shutdown not complete; external isolation required")
-	errNoDeadline    = errors.New("sessionlab: shutdown wait requires a deadline")
-	errProviderFault = errors.New("sessionlab: synthetic provider fault; key poisoned")
-	errWipeFailed    = errors.New("sessionlab: synthetic wipe failed; destruction NOT confirmed")
-	errTicket        = errors.New("sessionlab: ticket absent, foreign or already spent")
+	errClosed          = errors.New("sessionlab: session closing")
+	errExhausted       = errors.New("sessionlab: synthetic counter exhausted")
+	errInvalid         = errors.New("sessionlab: invalid synthetic dependency or limit")
+	errDeadline        = errors.New("sessionlab: shutdown not complete; external isolation required")
+	errNoDeadline      = errors.New("sessionlab: shutdown wait requires a deadline")
+	errProviderFault   = errors.New("sessionlab: synthetic provider fault; key poisoned")
+	errWipeFailed      = errors.New("sessionlab: synthetic wipe failed; destruction NOT confirmed")
+	errTicket          = errors.New("sessionlab: ticket absent, foreign or already spent")
+	errProviderReuse   = errors.New("sessionlab: provider has already been claimed")
+	errWipeUnconfirmed = fmt.Errorf("%w: wipe started but is unconfirmed", errDeadline)
 )
 
 // Unexported test doubles. Neither process nor wipe provides cryptography.
+// Per-provider one-time ownership avoids an immortal process-global map.
+type providerClaim struct{ claimed atomic.Bool }
+
+func (c *providerClaim) claim() bool { return c.claimed.CompareAndSwap(false, true) }
+
+// The test-only provider is defined in this package; real providers must be
+// concrete and module-private rather than accepting arbitrary interfaces.
 type processor interface {
 	process(ticket uint64, payload []byte) ([]byte, error)
 	wipe()
+	claim() bool
 }
 
 type wire interface {
@@ -63,6 +75,7 @@ type gate struct {
 	state  atomic.Uint64
 	done   chan struct{}
 	finish func()
+	onFail func() // must be non-blocking; installed before publishing gate
 }
 
 func newGate(finish func()) *gate { return &gate{done: make(chan struct{}), finish: finish} }
@@ -107,6 +120,9 @@ func (g *gate) startFinish() {
 				defer func() {
 					if recover() != nil {
 						g.state.Or(failedFlag)
+						if g.onFail != nil {
+							g.onFail()
+						}
 					}
 				}()
 				g.finish()
@@ -124,7 +140,16 @@ func (g *gate) beginClose() {
 }
 
 func (g *gate) poison() {
-	state := g.state.Or(closingFlag|poisonFlag) | closingFlag | poisonFlag
+	state := g.state.Or(closingFlag|discardFlag|poisonFlag) | closingFlag | discardFlag | poisonFlag
+	if state&referenceMask == 0 {
+		g.startFinish()
+	}
+}
+
+// beginDiscard closes admissions and discards in-progress outputs.
+// Used for emergencies and superseded key generations.
+func (g *gate) beginDiscard() {
+	state := g.state.Or(closingFlag|discardFlag) | closingFlag | discardFlag
 	if state&referenceMask == 0 {
 		g.startFinish()
 	}
@@ -145,6 +170,9 @@ func (g *gate) await(ctx context.Context) error {
 		}
 		return nil
 	case <-ctx.Done():
+		if g.state.Load()&finishedFlag != 0 {
+			return errWipeUnconfirmed
+		}
 		return errDeadline
 	}
 }
@@ -205,19 +233,21 @@ func (k *key) seal(payload []byte) (out packet, err error) {
 		return packet{}, err
 	}
 	result, err := k.p.process(ticket, payload)
-	if k.gate.state.Load()&closingFlag != 0 {
-		clear(result)
-		return packet{}, errClosed
-	}
 	if err != nil {
-		clear(result)
+		// Never clear provider output of unknown ownership: it may alias input.
 		k.gate.poison()
 		return packet{}, errProviderFault
+	}
+	// Always copy, including partial overlaps and subslices.
+	owned := append([]byte(nil), result...)
+	if k.gate.state.Load()&discardFlag != 0 {
+		clear(owned)
+		return packet{}, errClosed
 	}
 	// Keep the existing lease until dispatch or Discard. If it was released
 	// here, rotation could wipe this key while its packet remains queued.
 	transferred = true
-	return packet{ticket: ticket, data: result, guard: &packetGuard{owner: k}}, nil
+	return packet{ticket: ticket, data: owned, guard: &packetGuard{owner: k}}, nil
 }
 
 type egress struct {
@@ -229,12 +259,14 @@ func newEgress(w wire) *egress { return &egress{gate: newGate(func() {}), w: w} 
 
 // session serializes rotation with the emergency key snapshot.
 type session struct {
-	mu      sync.RWMutex
-	closed  bool
-	k       *key
-	keys    []*key                  // all generations must be drained on shutdown
-	pending map[*packetGuard]packet // queued records owning leases
-	e       *egress
+	mu       sync.RWMutex
+	closed   bool
+	k        *key
+	previous *key
+	faults   atomic.Uint64           // monotone fault latch survives old-generation pruning
+	keys     []*key                  // all generations must be drained on shutdown
+	pending  map[*packetGuard]packet // queued records owning leases
+	e        *egress
 }
 
 func validDependency(v any) bool {
@@ -249,33 +281,76 @@ func validDependency(v any) bool {
 	return true
 }
 
+func validProvider(p processor) bool {
+	if p == nil {
+		return false
+	}
+	v := reflect.ValueOf(p)
+	return v.Kind() == reflect.Pointer && !v.IsNil()
+}
+
+const (
+	faultPoisoned   = uint64(1) << 0
+	faultWipeFailed = uint64(1) << 1
+)
+
+func (s *session) newKeyOwned(p processor, max uint64) *key {
+	k := newKey(p, max)
+	k.gate.onFail = func() {
+		// Record fault synchronously BEFORE the done channel is closed.
+		// Async shutdown cannot erase fault evidence if generations are pruned.
+		s.faults.Or(faultWipeFailed)
+		go s.beginEmergency()
+	}
+	return k
+}
+func (s *session) faultState() (poisoned, wipeFailed bool) {
+	f := s.faults.Load()
+	return f&faultPoisoned != 0, f&faultWipeFailed != 0
+}
+
 func newSession(p processor, w wire, maxTickets uint64) (*session, error) {
-	if !validDependency(p) || !validDependency(w) || maxTickets == 0 {
+	if !validProvider(p) || !validDependency(w) || maxTickets == 0 {
 		return nil, errInvalid
 	}
-	k := newKey(p, maxTickets)
-	return &session{k: k, keys: []*key{k}, pending: make(map[*packetGuard]packet), e: newEgress(w)}, nil
+	if !p.claim() {
+		return nil, errProviderReuse
+	}
+	s := &session{pending: make(map[*packetGuard]packet), e: newEgress(w)}
+	k := s.newKeyOwned(p, maxTickets)
+	s.k, s.keys = k, []*key{k}
+	return s, nil
 }
 
 func (s *session) prepare(payload []byte) (packet, error) {
-	s.mu.RLock()
-	if s.closed {
+	var k *key
+	var pkt packet
+	var err error
+	for attempt := 0; attempt < 2; attempt++ {
+		s.mu.RLock()
+		if s.closed || s.faults.Load()&faultWipeFailed != 0 {
+			s.mu.RUnlock()
+			return packet{}, errClosed
+		}
+		k = s.k
 		s.mu.RUnlock()
-		return packet{}, errClosed
+		pkt, err = k.seal(payload)
+		if !errors.Is(err, errClosed) {
+			break
+		}
 	}
-	k := s.k
-	s.mu.RUnlock()
-	pkt, err := k.seal(payload)
 	if err != nil {
 		if errors.Is(err, errProviderFault) {
+			s.faults.Or(faultPoisoned)
 			s.beginEmergency()
 		}
 		return packet{}, err
 	}
 	s.mu.Lock()
-	if s.closed {
+	// An old in-flight operation can outlive TWO rotations: never admit
+	// output from a generation older than the immediately previous one.
+	if s.closed || (k != s.k && k != s.previous) || k.gate.state.Load()&discardFlag != 0 {
 		s.mu.Unlock()
-		// Reservation is irrevocably burnt; release the pending key reference.
 		pkt.guard.used.Store(true)
 		k.gate.leave()
 		clear(pkt.data)
@@ -283,6 +358,7 @@ func (s *session) prepare(payload []byte) (packet, error) {
 	}
 	s.pending[pkt.guard] = pkt
 	s.mu.Unlock()
+	pkt.data = nil // the queue (not its caller) owns the output buffer
 	return pkt, nil
 }
 
@@ -336,18 +412,45 @@ func (s *session) dispatch(p packet) (err error) {
 // rotate serializes publishing a new generation with the emergency snapshot.
 // No new key can be installed once s.closed was set under the same mutex.
 func (s *session) rotate(p processor, maxTickets uint64) error {
-	if !validDependency(p) || maxTickets == 0 {
+	if !validProvider(p) || maxTickets == 0 {
 		return errInvalid
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.closed {
+	if s.closed || s.faults.Load()&faultWipeFailed != 0 {
 		return errClosed
 	}
+	if !p.claim() {
+		return errProviderReuse
+	}
 	old := s.k
-	fresh := newKey(p, maxTickets)
+	// Older-than-previous generations must be unable to enqueue an output
+	// even if their process() was admitted before this rotation.
+	for _, retired := range s.keys {
+		if retired != old {
+			retired.gate.beginDiscard()
+		}
+	}
+	for guard, queued := range s.pending {
+		if guard.owner != old && guard.used.CompareAndSwap(false, true) {
+			delete(s.pending, guard)
+			clear(queued.data)
+			guard.owner.gate.leave()
+		}
+	}
+	live := s.keys[:0]
+	for _, existing := range s.keys {
+		select {
+		case <-existing.gate.done:
+			// A completed wipe was confirmed; its fault remains latched.
+		default:
+			live = append(live, existing)
+		}
+	}
+	fresh := s.newKeyOwned(p, maxTickets)
+	s.previous = old
 	s.k = fresh
-	s.keys = append(s.keys, fresh)
+	s.keys = append(live, fresh)
 	old.gate.beginClose()
 	return nil
 }
@@ -367,7 +470,7 @@ func (s *session) beginEmergency() {
 		delete(s.pending, guard)
 	}
 	for _, k := range s.keys {
-		k.gate.beginClose()
+		k.gate.beginDiscard()
 	}
 	s.mu.Unlock()
 }
@@ -393,6 +496,9 @@ func (s *session) awaitDrained(ctx context.Context) error {
 		if err := k.gate.await(ctx); err != nil {
 			return err
 		}
+	}
+	if s.faults.Load()&faultWipeFailed != 0 {
+		return errWipeFailed
 	}
 	return nil
 }
