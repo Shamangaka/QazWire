@@ -265,7 +265,18 @@ func TestM16_GrandparentInFlightRetriesCurrent(t *testing.T) {
 		t.Fatal("prepare did not finish after release")
 	}
 	if !first.wiped {
-		t.Fatal("old generation still reachable after release")
+		t.Fatal("old generation not wiped after release")
+	}
+	s.mu.Lock()
+	stillRegistered := false
+	for _, g := range s.generations {
+		if g == first {
+			stillRegistered = true
+		}
+	}
+	s.mu.Unlock()
+	if stillRegistered {
+		t.Fatal("wiped grandparent remains registered after its last lease ended")
 	}
 }
 
