@@ -14,11 +14,15 @@ import (
 	"time"
 )
 
-func lab(t *testing.T, tickets, bytes uint64, pinned int) *Session {
+func lab(t *testing.T, tickets, bytes uint64, pinned int) *labSession {
 	t.Helper()
-	s, err := NewLabSession(tickets, bytes, pinned)
+	v, err := NewLabSession(tickets, bytes, pinned)
 	if err != nil {
 		t.Fatal(err)
+	}
+	s, ok := v.(*labSession)
+	if !ok {
+		t.Fatal("public session did not wrap a private concrete owner")
 	}
 	t.Cleanup(func() {
 		s.Stop()
