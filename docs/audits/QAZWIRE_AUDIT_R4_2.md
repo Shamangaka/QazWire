@@ -10,7 +10,9 @@
 - `session.go` полностью изучен: атомарный `gate`, `providerClaim`, `seal`, `prepare`, `dispatch`, `rotate`, `beginEmergency`, `awaitDrained`. Изменения PR #13 и тесты `session_test.go`, `remediation_test.go`, `r41_regression_test.go`, `r41_2_regression_test.go` учтены.
 - Исходные критерии: `QAZWIRE_AUDIT_R4.md` §7.2–7.9, `QAZWIRE_AUDIT_R4_1.md` §9–13, `M1_5_2_R41_AUDIT_RESPONSE.md`.
 - Операторское Ubuntu Go 1.27.3: полные tagged/default тесты, race и vet PASS; 50 повторов stale-rotation и 10 повторов sessionlab race PASS. Это функциональное evidence, но не proof of security.
-- **Независимый CI:** GitHub Actions workflow `.github/workflows/qazwire-r42-audit.yml` на аудит-ветке, SHA-pinned checkout. Успешный запуск **#41591343263**, https://github.com/Shamangaka/QazWire/actions/runs/41591343263 : Go **1.24.13 linux/amd64**, положительный `sessionlab -race` PASS; оба специально созданных негативных теста детерминированно обнаружили нарушения на **неизменённом SHA**. Для отрицательных тестов ожидаемый FAIL означает *успешное воспроизведение дефекта*, а не PASS продукта.
+- **Дополнительная независимая проверка** — успешный GitHub Actions [run #41592174563](https://github.com/Shamangaka/QazWire/actions/runs/41592174563): `TestR42_01b_WipingOneProviderBreaksAnother` на том же неизменённом SHA получил `sessionlab: synthetic provider fault; key poisoned` после стирания общего backing material первой сессией. R42-01 теперь подтверждён и на уровне *конкретного нарушения жизненного цикла* другой живой сессии, а не только принятия алиаса. В этом же CI ещё раз воспроизведены R42-01, R42-02 и **изолированная правка R42-02 PASS**.
+
+**Независимый CI:** GitHub Actions workflow `.github/workflows/qazwire-r42-audit.yml` на аудит-ветке, SHA-pinned checkout. Успешный запуск **#41591343263**, https://github.com/Shamangaka/QazWire/actions/runs/41591343263 : Go **1.24.13 linux/amd64**, положительный `sessionlab -race` PASS; оба специально созданных негативных теста детерминированно обнаружили нарушения на **неизменённом SHA**. Для отрицательных тестов ожидаемый FAIL означает *успешное воспроизведение дефекта*, а не PASS продукта.
 
 ## 2. Подтверждённые недостатки
 
@@ -37,7 +39,7 @@
 
 ### Разбор R42-02
 
-`live := s.keys[:0]` фильтрует `len`, но не обнуляет записи базового массива за новым `len`. Рецепт минимального изменения (только для просмотра; **не применён к feature-ветке**): после завершения цикла фильтрации и до `append(live,fresh)` выполнить `clear(s.keys[:cap(s.keys)][len(live):])` под `session.mu`. Патч: `docs/audits/tools/_r4_2_harness/patches/r42_02_clear_retired_capacity.patch`. Тест нужен и на исправленной временной копии, плюс независимое ревью concurrent ownership/GC. `clear()` здесь касается указателей на объекты и не должен выдаваться за гарантированное стирание материала.
+`live := s.keys[:0]` фильтрует `len`, но не обнуляет записи базового массива за новым `len`. Рецепт минимального изменения (только для просмотра; **не применён к feature-ветке**): после завершения цикла фильтрации и до `append(live,fresh)` выполнить `clear(s.keys[:cap(s.keys)][len(live):])` под `session.mu`. Патч: `docs/audits/tools/_r4_2_harness/patches/r42_02_clear_retired_capacity.patch`. **Изолированная временная копия с патчем прошла этот негативный тест с `-race` в CI #41591986302 и #41592174563; патч не применён к PR #13.** Независимое ревью concurrent ownership/GC всё ещё требуется. `clear()` здесь касается указателей на объекты и не должен выдаваться за гарантированное стирание материала.
 
 ## 3. Независимая ограниченная модель M1.5.2
 
@@ -95,6 +97,6 @@ python3 docs/audits/tools/_r4_2_harness/m152_model.py
 bash docs/audits/tools/_r4_2_harness/run_r42.sh /path/to/QazWire
 ```
 
-Команды запускаются **из ветки аудита R4.2** (в ней лежит harness); runner берёт в качестве аргумента любой локальный репозиторий с объектом фиксированного SHA и работает с disposable `git archive`. Скрипт ожидает отдельные FAIL-результаты для негативных тестов исходной ревизии. **PASS скрипта означает, что ошибки воспроизведены**, а не что исходная версия исправлена. Патч R42-02 применяет только к временной копии (см. журнал CI для окончательного статуса); никакие user/feature/production ветки не изменяются.
+Команды запускаются **из ветки аудита R4.2** (в ней лежит harness); runner берёт в качестве аргумента любой локальный репозиторий с объектом фиксированного SHA и работает с disposable `git archive`. Скрипт ожидает отдельные FAIL-результаты для негативных тестов исходной ревизии. **PASS скрипта означает, что ошибки воспроизведены**, а не что исходная версия исправлена. Патч R42-02 применяет только к временной копии (**изолированное применение патча и тест — PASS в CI #41591986302**); никакие user/feature/production ветки не изменяются.
 
 **Недостающие доказательства:** 2+ worker и полная реализация-инструментированная state-space модель, provider error injection/cancellation, Rust/FFI ownership, физическая энтропия/CT, real wire netns, создание полнофункционального приёмного пути и официальное правовое заключение. Эти пункты намеренно НЕ обозначены VERIFIED.
