@@ -109,6 +109,9 @@ func TestM16_OneShotTicketCopiesForeignAndInputIsolation(t *testing.T) {
 	if !bytes.Equal(r.Data, []byte("immutable-after-return")) {
 		t.Fatalf("caller modified queued payload: %q", r.Data)
 	}
+	if p.state.gen != nil || p.state.session != nil || p.state.data != nil {
+		t.Fatal("spent ticket retains generation, owner or payload")
+	}
 	if _, err := s.Consume(p); !errors.Is(err, ErrTicket) {
 		t.Fatalf("ticket replay accepted: %v", err)
 	}
@@ -172,6 +175,9 @@ func TestM16_QueueByteBudgetAndOwnership(t *testing.T) {
 	if err := s.Discard(a); err != nil {
 		t.Fatal(err)
 	}
+	if a.state.gen != nil || a.state.session != nil || a.state.data != nil {
+		t.Fatal("discarded ticket retains generation, owner or payload")
+	}
 	if got := s.Snapshot().PendingBytes; got != 0 {
 		t.Fatalf("bytes retained after discard: %d", got)
 	}
@@ -198,6 +204,9 @@ func TestM16_SecondRotationDropsGrandparentQueue(t *testing.T) {
 	}
 	if _, err := s.Consume(packet); !errors.Is(err, ErrTicket) {
 		t.Fatalf("grandparent packet was admitted: %v", err)
+	}
+	if packet.state.gen != nil || packet.state.session != nil {
+		t.Fatal("flushed ticket still retains retired generation")
 	}
 	if !g0.wiped || s.Snapshot().Pending != 0 {
 		t.Fatal("stale queue did not release/erase retired generation")
