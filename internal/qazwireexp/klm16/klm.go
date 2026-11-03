@@ -21,7 +21,9 @@ var (
 	ErrTicket           = errors.New("klm16: ticket absent, foreign, or already consumed")
 	ErrTicketExhausted  = errors.New("klm16: generation ticket counter exhausted")
 	ErrEpochExhausted   = errors.New("klm16: epoch counter exhausted")
-	ErrBudget           = errors.New("klm16: queued byte budget exceeded")
+	ErrBudget           = errors.New("klm16: queued plus in-flight byte budget exceeded")
+	ErrCapacity         = errors.New("klm16: pending ticket limit exceeded")
+	ErrInFlight         = errors.New("klm16: in-flight preparation limit exceeded")
 	ErrRotated          = errors.New("klm16: key generation superseded during prepare")
 	ErrDeadlineRequired = errors.New("klm16: deadline required")
 	ErrDeadline         = errors.New("klm16: destruction not confirmed before deadline")
@@ -31,6 +33,13 @@ var (
 // A process-local monotonic domain. Across process restarts this is NOT a
 // globally unique identity. A real transport requires a handshake-derived,
 // authenticated per-direction key/nonce domain and restart guarantees.
+// These bound laboratory in-memory state even for zero-length records.
+// They are fixed safety caps, not production traffic-sizing parameters.
+const (
+	maxInFlightPrepares = 32
+	maxPendingTickets  = 1024
+)
+
 var nextSessionID atomic.Uint64
 var nextMaterialID atomic.Uint64
 
@@ -120,6 +129,8 @@ type Stats struct {
 	LiveKeys     int
 	Pending      int
 	PendingBytes uint64
+	InFlight     int
+	ReservedBytes uint64
 	Closed       bool
 	Faulted      bool
 }
@@ -148,6 +159,8 @@ type labSession struct {
 	generations  []*generation
 	pending      map[*ticketState]struct{}
 	pendingBytes uint64
+	reservedBytes uint64
+	inFlight     int
 	maxBytes     uint64
 	maxPinned    int
 	closed       bool
@@ -280,11 +293,18 @@ func (s *labSession) Stop() {
 func (s *labSession) Prepare(payload []byte) (ticket Ticket, err error) {
 	var leased *generation
 	var private []byte
+	var charged uint64
+	var hasCharge bool
 	defer func() {
 		if recover() != nil {
 			s.mu.Lock()
 			if leased != nil {
 				s.releaseLocked(leased)
+			}
+			if hasCharge {
+				s.reservedBytes -= charged
+				s.inFlight--
+				hasCharge = false
 			}
 			s.stopLocked(ErrPoisoned)
 			s.mu.Unlock()
@@ -300,9 +320,18 @@ func (s *labSession) Prepare(payload []byte) (ticket Ticket, err error) {
 			s.mu.Unlock()
 			return Ticket{}, err
 		}
-		if uint64(len(payload)) > s.maxBytes {
+		amount := uint64(len(payload))
+		if amount > s.maxBytes-s.pendingBytes-s.reservedBytes {
 			s.mu.Unlock()
 			return Ticket{}, ErrBudget
+		}
+		if len(s.pending)+s.inFlight >= maxPendingTickets {
+			s.mu.Unlock()
+			return Ticket{}, ErrCapacity
+		}
+		if s.inFlight >= maxInFlightPrepares {
+			s.mu.Unlock()
+			return Ticket{}, ErrInFlight
 		}
 		g := s.current
 		if g.next >= g.max {
@@ -312,6 +341,10 @@ func (s *labSession) Prepare(payload []byte) (ticket Ticket, err error) {
 		seq := g.next
 		g.next++
 		g.refs++
+		s.reservedBytes += amount
+		s.inFlight++
+		hasCharge = true
+		charged = amount
 		leased = g
 		hook := s.beforeQueue
 		s.mu.Unlock()
@@ -327,6 +360,9 @@ func (s *labSession) Prepare(payload []byte) (ticket Ticket, err error) {
 		if !acceptable {
 			open := !s.closed
 			s.releaseLocked(g)
+			s.reservedBytes -= charged
+			s.inFlight--
+			hasCharge = false
 			// An in-flight lease may be the LAST reference to a grandparent
 			// that was discarded by two rotations. Remove its wiped slot now,
 			// not only upon a future Rotate/Consume.
@@ -343,15 +379,11 @@ func (s *labSession) Prepare(payload []byte) (ticket Ticket, err error) {
 			s.mu.Unlock()
 			return Ticket{}, err
 		}
-		amount := uint64(len(private))
-		if amount > s.maxBytes-s.pendingBytes {
-			s.releaseLocked(g)
-			leased = nil
-			s.mu.Unlock()
-			clear(private)
-			private = nil
-			return Ticket{}, ErrBudget
-		}
+		// Reservation was charged BEFORE the private copy. A concurrent
+		// Prepare cannot allocate unaccounted queued bytes during the hook.
+		s.reservedBytes -= charged
+		s.inFlight--
+		hasCharge = false
 		state := &ticketState{session: s, gen: g, seq: seq, data: private}
 		s.pending[state] = struct{}{}
 		s.pendingBytes += amount
@@ -513,6 +545,8 @@ func (s *labSession) Snapshot() Stats {
 		LiveKeys:     live,
 		Pending:      len(s.pending),
 		PendingBytes: s.pendingBytes,
+		InFlight:     s.inFlight,
+		ReservedBytes: s.reservedBytes,
 		Closed:       s.closed,
 		Faulted:      s.fault != nil,
 	}
