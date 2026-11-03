@@ -327,6 +327,10 @@ func (s *labSession) Prepare(payload []byte) (ticket Ticket, err error) {
 		if !acceptable {
 			open := !s.closed
 			s.releaseLocked(g)
+			// An in-flight lease may be the LAST reference to a grandparent
+			// that was discarded by two rotations. Remove its wiped slot now,
+			// not only upon a future Rotate/Consume.
+			s.pruneLocked()
 			leased = nil
 			s.mu.Unlock()
 			clear(private)
