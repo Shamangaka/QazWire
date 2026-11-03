@@ -294,4 +294,3 @@ func main() {
 	}
 	die(errors.New("usage: <parent|escaped|kill>; SYNTHETIC / RESEARCH ONLY"))
 }
-
