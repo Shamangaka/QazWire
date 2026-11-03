@@ -226,19 +226,21 @@ func (k *key) seal(payload []byte) (out packet, err error) {
 		return packet{}, err
 	}
 	result, err := k.p.process(ticket, payload)
-	if k.gate.state.Load()&closingFlag != 0 {
-		clear(result)
-		return packet{}, errClosed
-	}
 	if err != nil {
-		clear(result)
+		// Never clear provider output of unknown ownership: it may alias input.
 		k.gate.poison()
 		return packet{}, errProviderFault
+	}
+	// Always copy, including partial overlaps and subslices.
+	owned := append([]byte(nil), result...)
+	if k.gate.state.Load()&discardFlag != 0 {
+		clear(owned)
+		return packet{}, errClosed
 	}
 	// Keep the existing lease until dispatch or Discard. If it was released
 	// here, rotation could wipe this key while its packet remains queued.
 	transferred = true
-	return packet{ticket: ticket, data: result, guard: &packetGuard{owner: k}}, nil
+	return packet{ticket: ticket, data: owned, guard: &packetGuard{owner: k}}, nil
 }
 
 type egress struct {
@@ -253,6 +255,8 @@ type session struct {
 	mu      sync.RWMutex
 	closed  bool
 	k       *key
+	previous *key
+	faults atomic.Uint64 // monotone fault latch survives old-generation pruning
 	keys    []*key                  // all generations must be drained on shutdown
 	pending map[*packetGuard]packet // queued records owning leases
 	e       *egress
@@ -270,12 +274,41 @@ func validDependency(v any) bool {
 	return true
 }
 
+func validProvider(p processor) bool {
+	if p == nil { return false }
+	v := reflect.ValueOf(p)
+	return v.Kind() == reflect.Pointer && !v.IsNil()
+}
+
+const (
+	faultPoisoned = uint64(1) << 0
+	faultWipeFailed = uint64(1) << 1
+)
+
+func (s *session) newKeyOwned(p processor, max uint64) *key {
+	k := newKey(p, max)
+	k.gate.onFail = func() {
+		// Record fault synchronously BEFORE the done channel is closed.
+		// Async shutdown cannot erase fault evidence if generations are pruned.
+		s.faults.Or(faultWipeFailed)
+		go s.beginEmergency()
+	}
+	return k
+}
+func (s *session) faultState() (poisoned, wipeFailed bool) {
+	f := s.faults.Load()
+	return f&faultPoisoned != 0, f&faultWipeFailed != 0
+}
+
 func newSession(p processor, w wire, maxTickets uint64) (*session, error) {
-	if !validDependency(p) || !validDependency(w) || maxTickets == 0 {
+	if !validProvider(p) || !validDependency(w) || maxTickets == 0 {
 		return nil, errInvalid
 	}
-	k := newKey(p, maxTickets)
-	return &session{k: k, keys: []*key{k}, pending: make(map[*packetGuard]packet), e: newEgress(w)}, nil
+	if !p.claim() { return nil, errProviderReuse }
+	s := &session{pending: make(map[*packetGuard]packet), e: newEgress(w)}
+	k := s.newKeyOwned(p, maxTickets)
+	s.k, s.keys = k, []*key{k}
+	return s, nil
 }
 
 func (s *session) prepare(payload []byte) (packet, error) {
