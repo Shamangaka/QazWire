@@ -13,6 +13,7 @@ import (
 )
 
 type fakeProcessor struct {
+	providerClaim
 	started       chan struct{}
 	release       chan struct{}
 	wipeStarted   chan struct{}
