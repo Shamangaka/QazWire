@@ -1,0 +1,233 @@
+=== RUN   TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries
+--- PASS: TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries (0.00s)
+=== RUN   TestR42IFix_06b_NoDispatchInsideLatchWindow
+--- PASS: TestR42IFix_06b_NoDispatchInsideLatchWindow (0.00s)
+=== RUN   TestR42I_06_DispatchAfterLatchBeforeEmergency
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+--- PASS: TestR42I_06_DispatchAfterLatchBeforeEmergency (0.00s)
+=== RUN   TestPreparedPacketNeverDispatchedAfterEmergency
+--- PASS: TestPreparedPacketNeverDispatchedAfterEmergency (0.00s)
+=== RUN   TestBlockedProcessorEmergencyDeadlineAndDrain
+--- PASS: TestBlockedProcessorEmergencyDeadlineAndDrain (0.02s)
+=== RUN   TestInFlightWireDrainedBeforeCompletion
+--- PASS: TestInFlightWireDrainedBeforeCompletion (0.02s)
+=== RUN   TestNoCounterReuseUnderContention
+--- PASS: TestNoCounterReuseUnderContention (0.02s)
+=== RUN   TestConcurrentShutdownClaimsWipeOnlyOnce
+--- PASS: TestConcurrentShutdownClaimsWipeOnlyOnce (0.05s)
+=== RUN   TestWipeHangNeverReportsSuccess
+--- PASS: TestWipeHangNeverReportsSuccess (0.02s)
+=== RUN   TestEmergencyCalledFromProcessorDoesNotSelfDeadlock
+--- PASS: TestEmergencyCalledFromProcessorDoesNotSelfDeadlock (0.00s)
+=== RUN   TestTypedNilDependencyAndInvalidConfig
+--- PASS: TestTypedNilDependencyAndInvalidConfig (0.00s)
+=== RUN   TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries
+--- PASS: TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries (0.00s)
+=== RUN   TestR42IFix_06b_NoDispatchInsideLatchWindow
+--- PASS: TestR42IFix_06b_NoDispatchInsideLatchWindow (0.00s)
+=== RUN   TestR42I_06_DispatchAfterLatchBeforeEmergency
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+--- PASS: TestR42I_06_DispatchAfterLatchBeforeEmergency (0.00s)
+=== RUN   TestPreparedPacketNeverDispatchedAfterEmergency
+--- PASS: TestPreparedPacketNeverDispatchedAfterEmergency (0.00s)
+=== RUN   TestBlockedProcessorEmergencyDeadlineAndDrain
+--- PASS: TestBlockedProcessorEmergencyDeadlineAndDrain (0.02s)
+=== RUN   TestInFlightWireDrainedBeforeCompletion
+--- PASS: TestInFlightWireDrainedBeforeCompletion (0.02s)
+=== RUN   TestNoCounterReuseUnderContention
+--- PASS: TestNoCounterReuseUnderContention (0.02s)
+=== RUN   TestConcurrentShutdownClaimsWipeOnlyOnce
+--- PASS: TestConcurrentShutdownClaimsWipeOnlyOnce (0.03s)
+=== RUN   TestWipeHangNeverReportsSuccess
+--- PASS: TestWipeHangNeverReportsSuccess (0.02s)
+=== RUN   TestEmergencyCalledFromProcessorDoesNotSelfDeadlock
+--- PASS: TestEmergencyCalledFromProcessorDoesNotSelfDeadlock (0.00s)
+=== RUN   TestTypedNilDependencyAndInvalidConfig
+--- PASS: TestTypedNilDependencyAndInvalidConfig (0.00s)
+=== RUN   TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries
+--- PASS: TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries (0.00s)
+=== RUN   TestR42IFix_06b_NoDispatchInsideLatchWindow
+--- PASS: TestR42IFix_06b_NoDispatchInsideLatchWindow (0.00s)
+=== RUN   TestR42I_06_DispatchAfterLatchBeforeEmergency
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+--- PASS: TestR42I_06_DispatchAfterLatchBeforeEmergency (0.00s)
+=== RUN   TestPreparedPacketNeverDispatchedAfterEmergency
+--- PASS: TestPreparedPacketNeverDispatchedAfterEmergency (0.00s)
+=== RUN   TestBlockedProcessorEmergencyDeadlineAndDrain
+--- PASS: TestBlockedProcessorEmergencyDeadlineAndDrain (0.02s)
+=== RUN   TestInFlightWireDrainedBeforeCompletion
+--- PASS: TestInFlightWireDrainedBeforeCompletion (0.02s)
+=== RUN   TestNoCounterReuseUnderContention
+--- PASS: TestNoCounterReuseUnderContention (0.02s)
+=== RUN   TestConcurrentShutdownClaimsWipeOnlyOnce
+--- PASS: TestConcurrentShutdownClaimsWipeOnlyOnce (0.03s)
+=== RUN   TestWipeHangNeverReportsSuccess
+--- PASS: TestWipeHangNeverReportsSuccess (0.02s)
+=== RUN   TestEmergencyCalledFromProcessorDoesNotSelfDeadlock
+--- PASS: TestEmergencyCalledFromProcessorDoesNotSelfDeadlock (0.00s)
+=== RUN   TestTypedNilDependencyAndInvalidConfig
+--- PASS: TestTypedNilDependencyAndInvalidConfig (0.00s)
+=== RUN   TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries
+--- PASS: TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries (0.00s)
+=== RUN   TestR42IFix_06b_NoDispatchInsideLatchWindow
+--- PASS: TestR42IFix_06b_NoDispatchInsideLatchWindow (0.00s)
+=== RUN   TestR42I_06_DispatchAfterLatchBeforeEmergency
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+--- PASS: TestR42I_06_DispatchAfterLatchBeforeEmergency (0.00s)
+=== RUN   TestPreparedPacketNeverDispatchedAfterEmergency
+--- PASS: TestPreparedPacketNeverDispatchedAfterEmergency (0.00s)
+=== RUN   TestBlockedProcessorEmergencyDeadlineAndDrain
+--- PASS: TestBlockedProcessorEmergencyDeadlineAndDrain (0.02s)
+=== RUN   TestInFlightWireDrainedBeforeCompletion
+--- PASS: TestInFlightWireDrainedBeforeCompletion (0.02s)
+=== RUN   TestNoCounterReuseUnderContention
+--- PASS: TestNoCounterReuseUnderContention (0.02s)
+=== RUN   TestConcurrentShutdownClaimsWipeOnlyOnce
+--- PASS: TestConcurrentShutdownClaimsWipeOnlyOnce (0.04s)
+=== RUN   TestWipeHangNeverReportsSuccess
+--- PASS: TestWipeHangNeverReportsSuccess (0.02s)
+=== RUN   TestEmergencyCalledFromProcessorDoesNotSelfDeadlock
+--- PASS: TestEmergencyCalledFromProcessorDoesNotSelfDeadlock (0.00s)
+=== RUN   TestTypedNilDependencyAndInvalidConfig
+--- PASS: TestTypedNilDependencyAndInvalidConfig (0.00s)
+=== RUN   TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries
+--- PASS: TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries (0.00s)
+=== RUN   TestR42IFix_06b_NoDispatchInsideLatchWindow
+--- PASS: TestR42IFix_06b_NoDispatchInsideLatchWindow (0.00s)
+=== RUN   TestR42I_06_DispatchAfterLatchBeforeEmergency
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+--- PASS: TestR42I_06_DispatchAfterLatchBeforeEmergency (0.00s)
+=== RUN   TestPreparedPacketNeverDispatchedAfterEmergency
+--- PASS: TestPreparedPacketNeverDispatchedAfterEmergency (0.00s)
+=== RUN   TestBlockedProcessorEmergencyDeadlineAndDrain
+--- PASS: TestBlockedProcessorEmergencyDeadlineAndDrain (0.02s)
+=== RUN   TestInFlightWireDrainedBeforeCompletion
+--- PASS: TestInFlightWireDrainedBeforeCompletion (0.02s)
+=== RUN   TestNoCounterReuseUnderContention
+--- PASS: TestNoCounterReuseUnderContention (0.02s)
+=== RUN   TestConcurrentShutdownClaimsWipeOnlyOnce
+--- PASS: TestConcurrentShutdownClaimsWipeOnlyOnce (0.03s)
+=== RUN   TestWipeHangNeverReportsSuccess
+--- PASS: TestWipeHangNeverReportsSuccess (0.02s)
+=== RUN   TestEmergencyCalledFromProcessorDoesNotSelfDeadlock
+--- PASS: TestEmergencyCalledFromProcessorDoesNotSelfDeadlock (0.00s)
+=== RUN   TestTypedNilDependencyAndInvalidConfig
+--- PASS: TestTypedNilDependencyAndInvalidConfig (0.00s)
+=== RUN   TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries
+--- PASS: TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries (0.00s)
+=== RUN   TestR42IFix_06b_NoDispatchInsideLatchWindow
+--- PASS: TestR42IFix_06b_NoDispatchInsideLatchWindow (0.00s)
+=== RUN   TestR42I_06_DispatchAfterLatchBeforeEmergency
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+--- PASS: TestR42I_06_DispatchAfterLatchBeforeEmergency (0.00s)
+=== RUN   TestPreparedPacketNeverDispatchedAfterEmergency
+--- PASS: TestPreparedPacketNeverDispatchedAfterEmergency (0.00s)
+=== RUN   TestBlockedProcessorEmergencyDeadlineAndDrain
+--- PASS: TestBlockedProcessorEmergencyDeadlineAndDrain (0.02s)
+=== RUN   TestInFlightWireDrainedBeforeCompletion
+--- PASS: TestInFlightWireDrainedBeforeCompletion (0.02s)
+=== RUN   TestNoCounterReuseUnderContention
+--- PASS: TestNoCounterReuseUnderContention (0.02s)
+=== RUN   TestConcurrentShutdownClaimsWipeOnlyOnce
+--- PASS: TestConcurrentShutdownClaimsWipeOnlyOnce (0.03s)
+=== RUN   TestWipeHangNeverReportsSuccess
+--- PASS: TestWipeHangNeverReportsSuccess (0.02s)
+=== RUN   TestEmergencyCalledFromProcessorDoesNotSelfDeadlock
+--- PASS: TestEmergencyCalledFromProcessorDoesNotSelfDeadlock (0.00s)
+=== RUN   TestTypedNilDependencyAndInvalidConfig
+--- PASS: TestTypedNilDependencyAndInvalidConfig (0.00s)
+=== RUN   TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries
+--- PASS: TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries (0.00s)
+=== RUN   TestR42IFix_06b_NoDispatchInsideLatchWindow
+--- PASS: TestR42IFix_06b_NoDispatchInsideLatchWindow (0.00s)
+=== RUN   TestR42I_06_DispatchAfterLatchBeforeEmergency
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+--- PASS: TestR42I_06_DispatchAfterLatchBeforeEmergency (0.00s)
+=== RUN   TestPreparedPacketNeverDispatchedAfterEmergency
+--- PASS: TestPreparedPacketNeverDispatchedAfterEmergency (0.00s)
+=== RUN   TestBlockedProcessorEmergencyDeadlineAndDrain
+--- PASS: TestBlockedProcessorEmergencyDeadlineAndDrain (0.02s)
+=== RUN   TestInFlightWireDrainedBeforeCompletion
+--- PASS: TestInFlightWireDrainedBeforeCompletion (0.02s)
+=== RUN   TestNoCounterReuseUnderContention
+--- PASS: TestNoCounterReuseUnderContention (0.02s)
+=== RUN   TestConcurrentShutdownClaimsWipeOnlyOnce
+--- PASS: TestConcurrentShutdownClaimsWipeOnlyOnce (0.03s)
+=== RUN   TestWipeHangNeverReportsSuccess
+--- PASS: TestWipeHangNeverReportsSuccess (0.02s)
+=== RUN   TestEmergencyCalledFromProcessorDoesNotSelfDeadlock
+--- PASS: TestEmergencyCalledFromProcessorDoesNotSelfDeadlock (0.00s)
+=== RUN   TestTypedNilDependencyAndInvalidConfig
+--- PASS: TestTypedNilDependencyAndInvalidConfig (0.00s)
+=== RUN   TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries
+--- PASS: TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries (0.00s)
+=== RUN   TestR42IFix_06b_NoDispatchInsideLatchWindow
+--- PASS: TestR42IFix_06b_NoDispatchInsideLatchWindow (0.00s)
+=== RUN   TestR42I_06_DispatchAfterLatchBeforeEmergency
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+--- PASS: TestR42I_06_DispatchAfterLatchBeforeEmergency (0.00s)
+=== RUN   TestPreparedPacketNeverDispatchedAfterEmergency
+--- PASS: TestPreparedPacketNeverDispatchedAfterEmergency (0.00s)
+=== RUN   TestBlockedProcessorEmergencyDeadlineAndDrain
+--- PASS: TestBlockedProcessorEmergencyDeadlineAndDrain (0.02s)
+=== RUN   TestInFlightWireDrainedBeforeCompletion
+--- PASS: TestInFlightWireDrainedBeforeCompletion (0.02s)
+=== RUN   TestNoCounterReuseUnderContention
+--- PASS: TestNoCounterReuseUnderContention (0.03s)
+=== RUN   TestConcurrentShutdownClaimsWipeOnlyOnce
+--- PASS: TestConcurrentShutdownClaimsWipeOnlyOnce (0.03s)
+=== RUN   TestWipeHangNeverReportsSuccess
+--- PASS: TestWipeHangNeverReportsSuccess (0.02s)
+=== RUN   TestEmergencyCalledFromProcessorDoesNotSelfDeadlock
+--- PASS: TestEmergencyCalledFromProcessorDoesNotSelfDeadlock (0.00s)
+=== RUN   TestTypedNilDependencyAndInvalidConfig
+--- PASS: TestTypedNilDependencyAndInvalidConfig (0.00s)
+=== RUN   TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries
+--- PASS: TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries (0.00s)
+=== RUN   TestR42IFix_06b_NoDispatchInsideLatchWindow
+--- PASS: TestR42IFix_06b_NoDispatchInsideLatchWindow (0.00s)
+=== RUN   TestR42I_06_DispatchAfterLatchBeforeEmergency
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+--- PASS: TestR42I_06_DispatchAfterLatchBeforeEmergency (0.00s)
+=== RUN   TestPreparedPacketNeverDispatchedAfterEmergency
+--- PASS: TestPreparedPacketNeverDispatchedAfterEmergency (0.00s)
+=== RUN   TestBlockedProcessorEmergencyDeadlineAndDrain
+--- PASS: TestBlockedProcessorEmergencyDeadlineAndDrain (0.02s)
+=== RUN   TestInFlightWireDrainedBeforeCompletion
+--- PASS: TestInFlightWireDrainedBeforeCompletion (0.02s)
+=== RUN   TestNoCounterReuseUnderContention
+--- PASS: TestNoCounterReuseUnderContention (0.02s)
+=== RUN   TestConcurrentShutdownClaimsWipeOnlyOnce
+--- PASS: TestConcurrentShutdownClaimsWipeOnlyOnce (0.04s)
+=== RUN   TestWipeHangNeverReportsSuccess
+--- PASS: TestWipeHangNeverReportsSuccess (0.02s)
+=== RUN   TestEmergencyCalledFromProcessorDoesNotSelfDeadlock
+--- PASS: TestEmergencyCalledFromProcessorDoesNotSelfDeadlock (0.00s)
+=== RUN   TestTypedNilDependencyAndInvalidConfig
+--- PASS: TestTypedNilDependencyAndInvalidConfig (0.00s)
+=== RUN   TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries
+--- PASS: TestR42IFix_07_SecondRotationBetweenSealAndFenceRetries (0.00s)
+=== RUN   TestR42IFix_06b_NoDispatchInsideLatchWindow
+--- PASS: TestR42IFix_06b_NoDispatchInsideLatchWindow (0.00s)
+=== RUN   TestR42I_06_DispatchAfterLatchBeforeEmergency
+    r42_interleave_test.go:108: CONFIRMED R42-06: the latch fences prepare immediately; emergency (egress fence) follows asynchronously; awaitDrained reports errWipeFailed
+--- PASS: TestR42I_06_DispatchAfterLatchBeforeEmergency (0.00s)
+=== RUN   TestPreparedPacketNeverDispatchedAfterEmergency
+--- PASS: TestPreparedPacketNeverDispatchedAfterEmergency (0.00s)
+=== RUN   TestBlockedProcessorEmergencyDeadlineAndDrain
+--- PASS: TestBlockedProcessorEmergencyDeadlineAndDrain (0.02s)
+=== RUN   TestInFlightWireDrainedBeforeCompletion
+--- PASS: TestInFlightWireDrainedBeforeCompletion (0.02s)
+=== RUN   TestNoCounterReuseUnderContention
+--- PASS: TestNoCounterReuseUnderContention (0.02s)
+=== RUN   TestConcurrentShutdownClaimsWipeOnlyOnce
+--- PASS: TestConcurrentShutdownClaimsWipeOnlyOnce (0.03s)
+=== RUN   TestWipeHangNeverReportsSuccess
+--- PASS: TestWipeHangNeverReportsSuccess (0.02s)
+=== RUN   TestEmergencyCalledFromProcessorDoesNotSelfDeadlock
+--- PASS: TestEmergencyCalledFromProcessorDoesNotSelfDeadlock (0.00s)
+=== RUN   TestTypedNilDependencyAndInvalidConfig
+--- PASS: TestTypedNilDependencyAndInvalidConfig (0.00s)
+PASS
+ok  	harness/internal/qazwireexp/sessionlab_instr	2.252s
+exit=0

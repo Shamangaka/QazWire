@@ -1,0 +1,266 @@
+
+### MUTANT no_generation_fence on C3 [fast: hashed DFS, stop at first violation]
+states explored: 35084, terminal states: 80
+  safety refs_underflow                    : holds
+  safety wipe_with_outstanding_lease       : holds
+  safety process_after_key_wipe            : holds
+  safety send_with_wiped_key               : holds
+  safety send_after_drain_confirmed        : holds
+  safety dup_send                          : holds
+  safety dup_ticket                        : holds
+  safety ticket_after_closing              : holds
+  safety stale_enqueued                    : VIOLATED
+  safety superseded_claimed_for_send       : holds
+  safety pending_of_discarded_generation   : VIOLATED
+  safety resurrection                      : holds
+  safety await_nil_unsound                 : holds
+  safety material_ticket_reuse             : holds
+  deadlock: none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_open          : REACHABLE
+  observation dispatch_after_fault_latch    : unreachable
+  observation process_after_session_closed  : REACHABLE
+  observation poisoned_generation_packet_sent: unreachable
+  => mutant no_generation_fence: KILLED by pending_of_discarded_generation,stale_enqueued (35084 states)
+
+### MUTANT no_flush_older on C3 [fast: hashed DFS, stop at first violation]
+states explored: 35400, terminal states: 81
+  safety refs_underflow                    : holds
+  safety wipe_with_outstanding_lease       : holds
+  safety process_after_key_wipe            : holds
+  safety send_with_wiped_key               : holds
+  safety send_after_drain_confirmed        : holds
+  safety dup_send                          : holds
+  safety dup_ticket                        : holds
+  safety ticket_after_closing              : holds
+  safety stale_enqueued                    : holds
+  safety superseded_claimed_for_send       : holds
+  safety pending_of_discarded_generation   : VIOLATED
+  safety resurrection                      : holds
+  safety await_nil_unsound                 : holds
+  safety material_ticket_reuse             : holds
+  deadlock: none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_open          : REACHABLE
+  observation dispatch_after_fault_latch    : unreachable
+  observation process_after_session_closed  : REACHABLE
+  observation poisoned_generation_packet_sent: unreachable
+  => mutant no_flush_older: KILLED by pending_of_discarded_generation (35400 states)
+
+### MUTANT no_egress_gate on C3 [fast: hashed DFS, stop at first violation]
+states explored: 650, terminal states: 9
+  safety refs_underflow                    : holds
+  safety wipe_with_outstanding_lease       : holds
+  safety process_after_key_wipe            : holds
+  safety send_with_wiped_key               : holds
+  safety send_after_drain_confirmed        : VIOLATED
+  safety dup_send                          : holds
+  safety dup_ticket                        : holds
+  safety ticket_after_closing              : holds
+  safety stale_enqueued                    : holds
+  safety superseded_claimed_for_send       : holds
+  safety pending_of_discarded_generation   : holds
+  safety resurrection                      : holds
+  safety await_nil_unsound                 : holds
+  safety material_ticket_reuse             : holds
+  deadlock: none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_open          : unreachable
+  observation dispatch_after_fault_latch    : unreachable
+  observation process_after_session_closed  : REACHABLE
+  observation poisoned_generation_packet_sent: unreachable
+  => mutant no_egress_gate: KILLED by send_after_drain_confirmed (650 states)
+
+### MUTANT early_key_leave on C3 [fast: hashed DFS, stop at first violation]
+states explored: 749999, terminal states: 304
+  safety refs_underflow                    : holds
+  safety wipe_with_outstanding_lease       : VIOLATED
+  safety process_after_key_wipe            : holds
+  safety send_with_wiped_key               : holds
+  safety send_after_drain_confirmed        : holds
+  safety dup_send                          : holds
+  safety dup_ticket                        : holds
+  safety ticket_after_closing              : holds
+  safety stale_enqueued                    : holds
+  safety superseded_claimed_for_send       : holds
+  safety pending_of_discarded_generation   : holds
+  safety resurrection                      : holds
+  safety await_nil_unsound                 : holds
+  safety material_ticket_reuse             : holds
+  deadlock: none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_open          : REACHABLE
+  observation dispatch_after_fault_latch    : unreachable
+  observation process_after_session_closed  : REACHABLE
+  observation poisoned_generation_packet_sent: unreachable
+  => mutant early_key_leave: KILLED by wipe_with_outstanding_lease (749999 states)
+
+### MUTANT on_fail_no_latch on C5 [fast: hashed DFS, stop at first violation]
+states explored: 138, terminal states: 1
+  safety refs_underflow                    : holds
+  safety wipe_with_outstanding_lease       : holds
+  safety process_after_key_wipe            : holds
+  safety send_with_wiped_key               : holds
+  safety send_after_drain_confirmed        : holds
+  safety dup_send                          : holds
+  safety dup_ticket                        : holds
+  safety ticket_after_closing              : holds
+  safety stale_enqueued                    : holds
+  safety superseded_claimed_for_send       : holds
+  safety pending_of_discarded_generation   : holds
+  safety resurrection                      : holds
+  safety await_nil_unsound                 : VIOLATED
+  safety material_ticket_reuse             : holds
+  deadlock: none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_open          : unreachable
+  observation dispatch_after_fault_latch    : unreachable
+  observation process_after_session_closed  : unreachable
+  observation poisoned_generation_packet_sent: unreachable
+  => mutant on_fail_no_latch: KILLED by await_nil_unsound (138 states)
+
+### MUTANT await_skips_egress on C3 [fast: hashed DFS, stop at first violation]
+states explored: 2008017, terminal states: 374
+  safety refs_underflow                    : holds
+  safety wipe_with_outstanding_lease       : holds
+  safety process_after_key_wipe            : holds
+  safety send_with_wiped_key               : holds
+  safety send_after_drain_confirmed        : holds
+  safety dup_send                          : holds
+  safety dup_ticket                        : holds
+  safety ticket_after_closing              : holds
+  safety stale_enqueued                    : holds
+  safety superseded_claimed_for_send       : holds
+  safety pending_of_discarded_generation   : holds
+  safety resurrection                      : holds
+  safety await_nil_unsound                 : holds
+  safety material_ticket_reuse             : holds
+  deadlock: none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_open          : REACHABLE
+  observation dispatch_after_fault_latch    : unreachable
+  observation process_after_session_closed  : REACHABLE
+  observation poisoned_generation_packet_sent: unreachable
+  => mutant await_skips_egress: SURVIVED (2008017 states)
+
+### MUTANT no_emergency_flush on C3 [fast: hashed DFS, stop at first violation]
+states explored: 606, terminal states: 10
+  safety refs_underflow                    : holds
+  safety wipe_with_outstanding_lease       : holds
+  safety process_after_key_wipe            : holds
+  safety send_with_wiped_key               : holds
+  safety send_after_drain_confirmed        : holds
+  safety dup_send                          : holds
+  safety dup_ticket                        : holds
+  safety ticket_after_closing              : holds
+  safety stale_enqueued                    : holds
+  safety superseded_claimed_for_send       : holds
+  safety pending_of_discarded_generation   : holds
+  safety resurrection                      : holds
+  safety await_nil_unsound                 : holds
+  safety material_ticket_reuse             : holds
+  deadlock: VIOLATED
+  final: queue not empty after emergency: VIOLATED
+  final: gate not drained/finished after emergency: VIOLATED
+  observation errclosed_while_open          : unreachable
+  observation dispatch_after_fault_latch    : unreachable
+  observation process_after_session_closed  : REACHABLE
+  observation poisoned_generation_packet_sent: unreachable
+  => mutant no_emergency_flush: KILLED by deadlock,final: gate not drained/finished after emergency,final: queue not empty after emergency (606 states)
+
+### MUTANT leave_never_finishes on C3 [fast: hashed DFS, stop at first violation]
+states explored: 286, terminal states: 5
+  safety refs_underflow                    : holds
+  safety wipe_with_outstanding_lease       : holds
+  safety process_after_key_wipe            : holds
+  safety send_with_wiped_key               : holds
+  safety send_after_drain_confirmed        : holds
+  safety dup_send                          : holds
+  safety dup_ticket                        : holds
+  safety ticket_after_closing              : holds
+  safety stale_enqueued                    : holds
+  safety superseded_claimed_for_send       : holds
+  safety pending_of_discarded_generation   : holds
+  safety resurrection                      : holds
+  safety await_nil_unsound                 : holds
+  safety material_ticket_reuse             : holds
+  deadlock: VIOLATED
+  final: gate not drained/finished after emergency: VIOLATED
+  observation errclosed_while_open          : unreachable
+  observation dispatch_after_fault_latch    : unreachable
+  observation process_after_session_closed  : REACHABLE
+  observation poisoned_generation_packet_sent: unreachable
+  => mutant leave_never_finishes: KILLED by deadlock,final: gate not drained/finished after emergency (286 states)
+
+### MUTANT no_post_cas_check on C3 [fast: hashed DFS, stop at first violation]
+states explored: 324, terminal states: 5
+  safety refs_underflow                    : holds
+  safety wipe_with_outstanding_lease       : holds
+  safety process_after_key_wipe            : holds
+  safety send_with_wiped_key               : holds
+  safety send_after_drain_confirmed        : holds
+  safety dup_send                          : holds
+  safety dup_ticket                        : holds
+  safety ticket_after_closing              : VIOLATED
+  safety stale_enqueued                    : holds
+  safety superseded_claimed_for_send       : holds
+  safety pending_of_discarded_generation   : holds
+  safety resurrection                      : holds
+  safety await_nil_unsound                 : holds
+  safety material_ticket_reuse             : holds
+  deadlock: none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_open          : unreachable
+  observation dispatch_after_fault_latch    : unreachable
+  observation process_after_session_closed  : REACHABLE
+  observation poisoned_generation_packet_sent: unreachable
+  => mutant no_post_cas_check: KILLED by ticket_after_closing (324 states)
+
+### MUTANT no_discard_older on C4 [fast: hashed DFS, stop at first violation]
+states explored: 339905, terminal states: 221
+  safety refs_underflow                    : holds
+  safety wipe_with_outstanding_lease       : holds
+  safety process_after_key_wipe            : holds
+  safety send_with_wiped_key               : holds
+  safety send_after_drain_confirmed        : holds
+  safety dup_send                          : holds
+  safety dup_ticket                        : holds
+  safety ticket_after_closing              : holds
+  safety stale_enqueued                    : holds
+  safety superseded_claimed_for_send       : holds
+  safety pending_of_discarded_generation   : holds
+  safety resurrection                      : holds
+  safety await_nil_unsound                 : holds
+  safety material_ticket_reuse             : holds
+  deadlock: none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_open          : REACHABLE
+  observation dispatch_after_fault_latch    : unreachable
+  observation process_after_session_closed  : unreachable
+  observation poisoned_generation_packet_sent: unreachable
+  => mutant no_discard_older: SURVIVED (339905 states)
+
+### MUTANT await_ignores_latch on C5 [fast: hashed DFS, stop at first violation]
+states explored: 765, terminal states: 1
+  safety refs_underflow                    : holds
+  safety wipe_with_outstanding_lease       : holds
+  safety process_after_key_wipe            : holds
+  safety send_with_wiped_key               : holds
+  safety send_after_drain_confirmed        : holds
+  safety dup_send                          : holds
+  safety dup_ticket                        : holds
+  safety ticket_after_closing              : holds
+  safety stale_enqueued                    : holds
+  safety superseded_claimed_for_send       : holds
+  safety pending_of_discarded_generation   : holds
+  safety resurrection                      : holds
+  safety await_nil_unsound                 : VIOLATED
+  safety material_ticket_reuse             : holds
+  deadlock: none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_open          : unreachable
+  observation dispatch_after_fault_latch    : unreachable
+  observation process_after_session_closed  : unreachable
+  observation poisoned_generation_packet_sent: unreachable
+  => mutant await_ignores_latch: KILLED by await_nil_unsound (765 states)
+exit=0 elapsed 378s

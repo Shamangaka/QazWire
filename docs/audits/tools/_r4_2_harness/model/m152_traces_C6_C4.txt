@@ -1,0 +1,122 @@
+
+### C6: provider panic in worker 0 -> poison + emergency + awaitDrained
+states explored: 93742, terminal states: 114
+  safety refs_underflow                    : holds
+  safety wipe_with_outstanding_lease       : holds
+  safety process_after_key_wipe            : holds
+  safety send_with_wiped_key               : holds
+  safety send_after_drain_confirmed        : holds
+  safety dup_send                          : holds
+  safety dup_ticket                        : holds
+  safety ticket_after_closing              : holds
+  safety stale_enqueued                    : holds
+  safety superseded_claimed_for_send       : holds
+  safety pending_of_discarded_generation   : holds
+  safety resurrection                      : holds
+  safety await_nil_unsound                 : holds
+  safety material_ticket_reuse             : holds
+  deadlock: none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_open          : REACHABLE
+  observation dispatch_after_fault_latch    : unreachable
+  observation process_after_session_closed  : REACHABLE
+  observation poisoned_generation_packet_sent: REACHABLE
+
+  shortest interleaving for errclosed_while_open:
+     1. W0: prepare: k := k0 (attempt 0)
+     2. W0: seal(k0): enter
+     3. W0: reserve: load next
+     4. W0: reserve: CAS -> ticket 0
+     5. W0: reserve: ticket valid
+     6. W0: process(k0): enter
+     7. W0: process(k0): PANIC -> poison
+     8. W1: prepare: k := k0 (attempt 0)
+     9. W1: seal(k0): enter refused -> retry
+    10. W1: prepare: k := k0 (attempt 1)
+    11. W1: seal(k0): enter refused -> errClosed
+
+  shortest interleaving for process_after_session_closed:
+     1. W0: prepare: k := k0 (attempt 0)
+     2. W0: seal(k0): enter
+     3. W0: reserve: load next
+     4. W0: reserve: CAS -> ticket 0
+     5. W0: reserve: ticket valid
+     6. W0: process(k0): enter
+     7. W0: process(k0): PANIC -> poison
+     8. W0: seal: leave; prepare: latch poisoned, beginEmergency
+     9. R: rotate: lock (new k1)
+    10. R: rotate: skip k0
+    11. R: rotate: discard marks done
+    12. R: rotate: flush done
+    13. R: rotate: prune -> ('k0',); current k1, previous k0
+    14. R: rotate: k0.beginClose
+    15. R: rotate: unlock
+    16. W1: prepare: k := k1 (attempt 0)
+    17. EW0: emergency: egress beginClose
+    18. EW0: emergency: lock, closed
+    19. W1: seal(k1): enter
+
+  shortest interleaving for poisoned_generation_packet_sent:
+     1. W0: prepare: k := k0 (attempt 0)
+     2. W0: seal(k0): enter
+     3. W0: reserve: load next
+     4. W0: reserve: CAS -> ticket 0
+     5. W0: reserve: ticket valid
+     6. W0: process(k0): enter
+     7. W1: prepare: k := k0 (attempt 0)
+     8. W1: seal(k0): enter
+     9. W1: reserve: load next
+    10. W1: reserve: CAS -> ticket 1
+    11. W1: reserve: ticket valid
+    12. W1: process(k0): enter
+    13. W1: process(k0): return
+    14. W1: seal(k0): lease transferred
+    15. W1: prepare: pending[W1] on k0
+    16. W0: process(k0): PANIC -> poison
+    17. W1: dispatch: egress enter
+    18. W1: dispatch: claim
+    19. W1: wire.send (k0)
+
+### C4: 2 workers + 2 rotations, no emergency (retired generations must finish)
+states explored: 418689, terminal states: 261
+  safety refs_underflow                    : holds
+  safety wipe_with_outstanding_lease       : holds
+  safety process_after_key_wipe            : holds
+  safety send_with_wiped_key               : holds
+  safety send_after_drain_confirmed        : holds
+  safety dup_send                          : holds
+  safety dup_ticket                        : holds
+  safety ticket_after_closing              : holds
+  safety stale_enqueued                    : holds
+  safety superseded_claimed_for_send       : holds
+  safety pending_of_discarded_generation   : holds
+  safety resurrection                      : holds
+  safety await_nil_unsound                 : holds
+  safety material_ticket_reuse             : holds
+  deadlock: none
+  final-state properties: hold in every terminal state
+  observation errclosed_while_open          : REACHABLE
+  observation dispatch_after_fault_latch    : unreachable
+  observation process_after_session_closed  : unreachable
+  observation poisoned_generation_packet_sent: unreachable
+
+  shortest interleaving for errclosed_while_open:
+     1. W0: prepare: k := k0 (attempt 0)
+     2. R: rotate: lock (new k1)
+     3. R: rotate: skip k0
+     4. R: rotate: discard marks done
+     5. R: rotate: flush done
+     6. R: rotate: prune -> ('k0',); current k1, previous k0
+     7. R: rotate: k0.beginClose
+     8. W0: seal(k0): enter refused -> retry
+     9. R: rotate: unlock
+    10. W0: prepare: k := k1 (attempt 1)
+    11. R: rotate: lock (new k2)
+    12. R: rotate: k0.beginDiscard
+    13. R: rotate: skip k1
+    14. R: rotate: discard marks done
+    15. R: rotate: flush done
+    16. R: rotate: prune -> ('k0', 'k1'); current k2, previous k1
+    17. R: rotate: k1.beginClose
+    18. W0: seal(k1): enter refused -> errClosed
+exit=0 elapsed 43s
