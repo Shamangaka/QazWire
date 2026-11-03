@@ -1,7 +1,7 @@
 diff --git a/internal/qazwireexp/sessionlab/session.go b/internal/qazwireexp/sessionlab/session.go
 --- a/internal/qazwireexp/sessionlab/session.go
 +++ b/internal/qazwireexp/sessionlab/session.go
-@@ -438,16 +438,20 @@ func (s *session) rotate(p processor, maxTickets uint64) error {
+@@ -438,16 +438,19 @@ func (s *session) rotate(p processor, maxTickets uint64) error {
  			guard.owner.gate.leave()
  		}
  	}
