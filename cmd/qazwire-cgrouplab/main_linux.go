@@ -250,6 +250,9 @@ func killVerified(cg, unit string, mainPID, escapedPID int, memoryBytes uint64, 
 // Poll reports readable on task exit (even if the task remains a zombie).
  // Never use Kill(pid,0) here: PID reuse could invalidate that observation.
 func processExited(fd int) (bool, error) {
+	if fd < 0 {
+		return false, errors.New("invalid pidfd")
+	}
 	fds := []unix.PollFd{{Fd: int32(fd), Events: unix.POLLIN | unix.POLLHUP}}
 	_, err := unix.Poll(fds, 0)
 	if errors.Is(err, unix.EINTR) {
