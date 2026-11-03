@@ -10,7 +10,7 @@ On the owner's local Ubuntu kernel `7.0.0-38-generic` the following is directly 
 - A temporary user transient service created by `systemd-run --user` reported `MemoryMax=134217728`, `TasksMax=32`, `ActiveState=active`.
 - Its **non-root** cgroup exposed writable `cgroup.kill`, `cgroup.events populated=1`, `memory.max=134217728`, `pids.max=32`.
 - `unshare -Ur /usr/bin/true` failed with `write failed /proc/self/uid_map: Operation not permitted`; `kernel.apparmor_restrict_unprivileged_userns=1`.
-- **This is not evidence that any cgroup was actually killed**. This milestone's script provides that missing destructive test on a uniquely-created *synthetic* unit.
+- **First owner host execution (2026-11-03):** temporary unit `qazwire-m171-43a1cf9f30219c42.service`, MainPID `204777`, `setsid` descendant `204784`, both verified in the same unit cgroup. Write to `cgroup.kill` completed, but the next `Seek` on the opened `cgroup.events` returned `ENODEV`. This is **NOT_CONFIRMED**, not proof of successful termination. systemd may have deleted an empty cgroup before the read; it must be independently verified. The updated host probe pins both process identities with Linux pidfds and distinguishes a directly observed `populated=0` from `unit group removed + both pidfds exited`.
 
 **Decision:** use an unprivileged user systemd transient service **without** user namespaces. Do not modify sysctl or AppArmor merely to make a lab pass. Ubuntu 24.04 AppArmor applies restrictions to unprivileged user namespaces, and permission requires targeted AppArmor policy if later justified.
 
@@ -20,7 +20,7 @@ On the owner's local Ubuntu kernel `7.0.0-38-generic` the following is directly 
 
 - `parent <private-dir>`: a Go worker run as the systemd transient service's main process; spawns its own descendant using `Setsid:true`, **without Pdeathsig**, and writes both PIDs into a private 0700 marker directory. Both processes run forever unless killed.
 - `escaped`: the descendant; leaves the parent's Unix session/process group via `setsid` but must remain in the same cgroup.
-- `kill <cgroup> <unit> <mainpid> <memory-bytes> <task-limit>`: destructive operation intentionally available **only** for a validated transient `qazwire-m171-<16hex>.service` under the calling UID's `user@UID.service` subtree, with `MainPID` belonging to that cgroup, and `memory.max=134217728`, `pids.max=32`. Opens `cgroup.events` first, checks populated=1, writes `1` to `cgroup.kill`, rereads open `cgroup.events` until populated=0 or a 5-second deadline. Any error or missing confirmation is reported **NOT_CONFIRMED**, not success. The file path must use Linux cgroup2fs.
+- `kill <cgroup> <unit> <mainpid> <setsidpid> <memory-bytes> <task-limit>`: destructive operation available **only** for the validated unique transient `qazwire-m171-<16hex>.service` inside the current user's systemd subtree. It verifies **both** parent and `setsid` descendant in the cgroup, `memory.max=134217728`, and `pids.max=32`; opens pidfds for **both processes before the kill** and revalidates membership; opens `cgroup.events` and verifies populated=1; then writes `1` to `cgroup.kill`. Polls the pidfds and cgroup events until either: (a) both pidfds have exited **and** `populated=0` is observed; or (b) both pidfds have exited, the exact unit cgroup path has disappeared, and the already-open event FD returns ENODEV/ENOENT. The second outcome is labeled **CGROUP_REMOVED + PIDFDS_EXITED**, not an observation of `populated=0`. All other outcomes stay **NOT_CONFIRMED**, never PASS by ENODEV alone. The file path must use Linux cgroup2fs.
 
 `scripts/qazwire-m171-cgroup-lab.sh` builds the isolated test executable, generates a random unit name, starts the process in its own user systemd transient service with `MemoryMax=128M`, `TasksMax=32`, `NoNewPrivileges=yes` and `KillMode=control-group`; checks parent and `setsid` descendant's /proc cgroup membership and distinct Unix sessions; calls the narrowly-scoped `kill` command; and runs a cleanup trap to stop/reset the test unit.
 
@@ -41,7 +41,7 @@ Expected integration proof:
 1. systemd user service active with 128 MiB and 32-task limits;
 2. recorded parent and `setsid` child have **different** sessions but the **same** exact /proc cgroup;
 3. `cgroup.kill` writable and kill succeeds without `sudo`;
-4. the code observes `cgroup.events populated=0` before reporting PASS;
+4. the code either observes `cgroup.events populated=0` **and** both pidfds exited, or confirms that systemd deleted the exact unit cgroup **and** both pidfds exited. It labels these two proofs differently;
 5. temporary unit and files are removed by EXIT trap, even on error.
 
 **Unit test coverage**: strict parse of cgroup.events, rejection of foreign UID/root/parent cgroup/malformed paths or unit names, private marker directory verification, and PID membership preconditions. CI will run pure unit tests, build the lab, and run full Go regression. CI running in a GitHub Actions runner **will not claim actual cgroup.kill integration**; only the owner's host experiment can provide that evidence.
@@ -58,7 +58,7 @@ Expected integration proof:
 
 ## Readiness gate
 
-Only after a clean SHA-pinned Ubuntu cgroup kill test and green CI is M1.7.1 **LAB VERIFIED**. M1.7.2 independent watchdog + real A0 network egress blocking are NOT IMPLEMENTED; R5-02 isolation and R5-E1 restart identity remain OPEN. M2 / actual Qalqan / production VPN / claims of ST RK conformity remain **NO-GO**. No merge into master without owner approval.
+Only after a clean SHA-pinned Ubuntu cgroup kill test verifying **both pidfds terminated and either direct populated=0 or exact unit cgroup removal**, plus green CI, is M1.7.1 **LAB VERIFIED**. M1.7.2 independent watchdog + real A0 network egress blocking are NOT IMPLEMENTED; R5-02 isolation and R5-E1 restart identity remain OPEN. M2 / actual Qalqan / production VPN / claims of ST RK conformity remain **NO-GO**. No merge into master without owner approval.
 
 Primary references:
 - Linux kernel cgroup v2: `Documentation/admin-guide/cgroup-v2.rst` (`cgroup.kill` and `cgroup.events`);
