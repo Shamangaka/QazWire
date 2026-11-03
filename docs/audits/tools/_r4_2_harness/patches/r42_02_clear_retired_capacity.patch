@@ -1,0 +1,23 @@
+diff --git a/internal/qazwireexp/sessionlab/session.go b/internal/qazwireexp/sessionlab/session.go
+--- a/internal/qazwireexp/sessionlab/session.go
++++ b/internal/qazwireexp/sessionlab/session.go
+@@ -438,16 +438,20 @@ func (s *session) rotate(p processor, maxTickets uint64) error {
+ 			guard.owner.gate.leave()
+ 		}
+ 	}
+ 	live := s.keys[:0]
+ 	for _, existing := range s.keys {
+ 		select {
+ 		case <-existing.gate.done:
+ 			// A completed wipe was confirmed; its fault remains latched.
+ 		default:
+ 			live = append(live, existing)
+ 		}
+ 	}
++	// Clear even the hidden backing-array capacity so pruned generations
++	// cannot remain strongly referenced by this long-lived session.
++	clear(s.keys[:cap(s.keys)][len(live):])
+ 	fresh := s.newKeyOwned(p, maxTickets)
+ 	s.previous = old
+ 	s.k = fresh
+ 	s.keys = append(live, fresh)
