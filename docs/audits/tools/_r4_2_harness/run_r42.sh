@@ -43,6 +43,6 @@ printf '\nR4.2 NEGATIVE CONTROLS REPRODUCED (NOT product PASS)\n'
 printf '\n[remediation] apply isolated R42-02 patch in TEMPORARY snapshot only\n'
 patch -p1 < "$AUDIT_DIR/patches/r42_02_clear_retired_capacity.patch"
 go test -tags qazwire_exp -race -count=1 \
-  -run '^TestR42_02_PrunedKeysMustNotRemainInSliceCapacity -v \
+  -run TestR42_02_PrunedKeysMustNotRemainInSliceCapacity -v \
   ./internal/qazwireexp/sessionlab
 echo "R42-02 PATCHED CONTROL PASS; R42-01 remains a design blocker"
