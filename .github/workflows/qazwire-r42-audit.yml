@@ -21,6 +21,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Audit harness syntax
+        run: bash -n docs/audits/tools/_r4_2_harness/run_r42.sh
+
       - name: Bounded model and mutation controls
         run: |
           set -euo pipefail
