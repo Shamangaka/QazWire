@@ -124,6 +124,43 @@ def kill_owned_refresher(pid):
         os.close(fd)
 
 
+
+def terminate_namespace_members():
+    """Cleanup ONLY remaining tasks in our current new network namespace.
+
+    The helper itself is in the namespace; open each pidfd before confirming
+    namespace identity and signalling it. Never signal arbitrary numeric PIDs
+    obtained from an old PID file. Caller must validate this is its new netns.
+    """
+    our_ns = os.readlink("/proc/self/ns/net")
+    count = 0
+    for ent in os.listdir("/proc"):
+        if not ent.isdigit():
+            continue
+        pid = int(ent)
+        if pid <= 1 or pid == os.getpid():
+            continue
+        try:
+            fd = os.pidfd_open(pid, 0)
+        except (OSError, ProcessLookupError):
+            continue
+        try:
+            try:
+                target_ns = os.readlink(f"/proc/{pid}/ns/net")
+            except OSError:
+                continue
+            if target_ns != our_ns:
+                continue
+            try:
+                signal.pidfd_send_signal(fd, signal.SIGTERM, None, 0)
+                count += 1
+            except ProcessLookupError:
+                pass
+        finally:
+            os.close(fd)
+    print(f"LAB_NAMESPACE_TASKS_SIGTERM={count}", flush=True)
+
+
 def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="mode", required=True)
@@ -138,6 +175,7 @@ def main():
     r.add_argument("--period", type=float, default=0.25)
     k = sub.add_parser("kill-refresher")
     k.add_argument("--pid", type=int, required=True)
+    sub.add_parser("terminate-members")
     args = p.parse_args()
     if args.mode == "serve":
         return serve(args.pidfile)
@@ -147,6 +185,9 @@ def main():
         return 0 if probe(args.port, args.timeout) else 1
     if args.mode == "kill-refresher":
         kill_owned_refresher(args.pid)
+        return 0
+    if args.mode == "terminate-members":
+        terminate_namespace_members()
         return 0
     if not 0.1 <= args.period <= 0.5:
         p.error("renewal period must be between 0.1 and 0.5")
