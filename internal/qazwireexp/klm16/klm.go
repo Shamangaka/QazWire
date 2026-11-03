@@ -456,6 +456,21 @@ func (s *labSession) Rotate() error {
 		return ErrEpochExhausted
 	}
 	old := s.current
+	// R5-01: queued tickets of superseded generations do not pin a
+	// generation after they are discarded. Flush first, then account
+	// only genuine outstanding leases before deciding to fail closed.
+	// These mutations and the pinned check are atomic under s.mu.
+	for _, g := range s.generations {
+		if g != old {
+			g.retiring = true
+			g.discard = true
+		}
+	}
+	for state := range s.pending {
+		if state.gen != old {
+			s.removeTicketLocked(state)
+		}
+	}
 	pinned := 0
 	for _, g := range s.generations {
 		if g != old && g.refs > 0 {
@@ -470,18 +485,6 @@ func (s *labSession) Rotate() error {
 	if err != nil {
 		s.stopLocked(err)
 		return err
-	}
-	// Discard all earlier generations and queued tickets before publishing.
-	for _, g := range s.generations {
-		if g != old {
-			g.retiring = true
-			g.discard = true
-		}
-	}
-	for state := range s.pending {
-		if state.gen != old {
-			s.removeTicketLocked(state)
-		}
 	}
 	old.retiring = true
 	s.finishLocked(old)
