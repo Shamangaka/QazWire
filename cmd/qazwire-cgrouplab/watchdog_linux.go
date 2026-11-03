@@ -106,7 +106,7 @@ func serveGate(ln *net.UnixListener, gate *syntheticGate, stop <-chan struct{}) 
 				_, _ = io.WriteString(c, "ALLOW\n")
 				return
 			}
-			_, _ = io.WriteString(c, "DENY\n")
+			_, _ = io.WriteString(c, "DENY!\n")
 		}(conn)
 	}
 }
@@ -154,7 +154,7 @@ func gateRequest(socket string) (bool, error) {
 	if string(b[:]) == "ALLOW\n" {
 		return true, nil
 	}
-	if string(b[:5]) == "DENY\n" {
+	if string(b[:]) == "DENY!\n" {
 		return false, nil
 	}
 	return false, errors.New("unrecognized synthetic gate response")
