@@ -18,7 +18,7 @@ A root-run nft configuration operation is directed **only** through `ip netns ex
 - Only an expiring set `allow_dst` containing `198.18.27.2` can permit UDP to `198.18.27.2:44000`. Permitted replies are scoped to source `198.18.27.2:44000`. A second echo server on `:44001` is the negative control even when the lease is active.
 - The set element is inserted with `timeout 2s` and *not* refreshed by ordinary traffic. After the timeout, packets no longer match the permit. The application-level gate is **not called** by the direct UDP probe.
 - The peer runs a temporary two-port UDP echo process in the **other** namespace. Direct client uses `setpriv --reuid ... --clear-groups` to drop root before creating its ordinary socket.
-- A laboratory *privileged lease-renewer* can renew this element by atomic nft delete/add batches every 250 ms. Kill the actual renewer with `SIGKILL`, verify it belonged to the worker lab namespace, then measure post-death denial after waiting longer than the TTL.
+- A laboratory *privileged lease-renewer* can renew this element by atomic nft delete/add batches every 250 ms. A helper **inside the exact new worker namespace** opens the actual renewer's `pidfd`, verifies its namespace and command line, then sends `SIGKILL` via `pidfd_send_signal` (not by an unchecked numeric PID). Post-death denial is measured after the TTL.
 - A newly launched direct client after the renewer crash must also be denied. The test additionally reports whether a **residual allowance immediately after SIGKILL** remains active.
 
 ## Expected host test sequence
@@ -63,7 +63,7 @@ M1.7.2b LAB PASS: kernel nft default-deny, scoped lease, direct-socket enforceme
 SECURITY LIMIT: active lease may survive SIGKILL up to its TTL. Immediate A0 on watchdog crash NOT PROVEN.
 ```
 
-The lease renewal process has a 30-second maximum life and the echo server has a 40-second maximum. Cleanup traps stop only processes associated with the two randomly named namespaces, then remove those namespaces. This is a privileged, *locally executed lab script*; it must not be scheduled without explicit owner choice.
+The lease renewal process has a 30-second maximum life and the echo server has a 40-second maximum. Cleanup opens pidfds and sends SIGTERM **only** to tasks verified to reside in the two newly created namespaces, waits for their process lists to empty, then deletes both named namespaces. Cleanup failures cause a nonzero exit status; deleting a namespace *name* alone is not treated as proof all tasks exited. This is a privileged, *locally executed lab script*; it must not be scheduled without explicit owner choice.
 
 ## Test coverage and remaining gates
 
