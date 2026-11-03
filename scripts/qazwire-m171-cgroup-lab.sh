@@ -95,9 +95,9 @@ echo "memory.max=$(cat "$path/memory.max"), pids.max=$(cat "$path/pids.max")"
 echo "before: $(tr '\n' ',' < "$path/cgroup.events")"
 
 echo "========== ISSUE CGROUP.KILL AND VERIFY POPULATED=0 =========="
-"$tmp/qazwire-cgrouplab" kill "$cg" "$unit" "$mainpid" 134217728 32
+"$tmp/qazwire-cgrouplab" kill "$cg" "$unit" "$mainpid" "$escaped" 134217728 32
 
 echo "========== RESULT =========="
-echo "PASS: the detached setsid descendant and parent have left the SAME owned cgroup"
+echo "PASS: verified termination of both tracked processes and an empty or removed temporary cgroup"
 echo "LIMIT: no process memory isolation / A0 egress / independent watchdog / real secrets."
 echo "cleanup: temporary systemd unit will be stopped and reset by EXIT trap"
