@@ -234,9 +234,14 @@ func (s *labSession) removeTicketLocked(state *ticketState) {
 	}
 	delete(s.pending, state)
 	s.pendingBytes -= uint64(len(state.data))
+	g := state.gen
 	clear(state.data)
 	state.data = nil
-	s.releaseLocked(state.gen)
+	// External copies of Ticket still hold *ticketState. Sever every
+	// reference from a spent token to the owner and key generation.
+	state.gen = nil
+	state.session = nil
+	s.releaseLocked(g)
 }
 
 func (s *labSession) stopLocked(cause error) {
