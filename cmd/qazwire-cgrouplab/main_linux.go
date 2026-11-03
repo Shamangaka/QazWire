@@ -6,7 +6,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -296,7 +295,3 @@ func main() {
 	die(errors.New("usage: <parent|escaped|kill>; SYNTHETIC / RESEARCH ONLY"))
 }
 
-// Keep this import to force link-level visibility of context-aware design
-// obligations: future watchdog must live in a different failure domain.
-// This lab intentionally does not implement the actual watchdog.
-var _ = context.DeadlineExceeded
