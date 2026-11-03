@@ -28,7 +28,13 @@ jobs:
       - name: Format and whitespace
         run: |
           set -euo pipefail
-          test -z "$(gofmt -l internal/qazwireexp/klm16/*.go internal/qazwireexp/staged16/*.go internal/qazwireexp/klmproc17/*.go cmd/qazwire-klmproc-lab/*.go)"
+          files="$(gofmt -l internal/qazwireexp/klm16/*.go internal/qazwireexp/staged16/*.go internal/qazwireexp/klmproc17/*.go cmd/qazwire-klmproc-lab/*.go)"
+          if [ -n "$files" ]; then
+            printf 'NEEDS_GO_FMT:\\n%s\\n' "$files"
+            gofmt -w internal/qazwireexp/klmproc17/*.go cmd/qazwire-klmproc-lab/*.go
+            git diff -- internal/qazwireexp/klmproc17 cmd/qazwire-klmproc-lab
+            exit 1
+          fi
           git diff --check
 
       - name: Cross-process Unix IPC, protocol and socket policy 10x race
