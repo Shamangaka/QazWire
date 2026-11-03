@@ -39,6 +39,7 @@ var (
 // Unexported test doubles. Neither process nor wipe provides cryptography.
 // Per-provider one-time ownership avoids an immortal process-global map.
 type providerClaim struct{ claimed atomic.Bool }
+
 func (c *providerClaim) claim() bool { return c.claimed.CompareAndSwap(false, true) }
 
 // The test-only provider is defined in this package; real providers must be
@@ -258,14 +259,14 @@ func newEgress(w wire) *egress { return &egress{gate: newGate(func() {}), w: w} 
 
 // session serializes rotation with the emergency key snapshot.
 type session struct {
-	mu      sync.RWMutex
-	closed  bool
-	k       *key
+	mu       sync.RWMutex
+	closed   bool
+	k        *key
 	previous *key
-	faults atomic.Uint64 // monotone fault latch survives old-generation pruning
-	keys    []*key                  // all generations must be drained on shutdown
-	pending map[*packetGuard]packet // queued records owning leases
-	e       *egress
+	faults   atomic.Uint64           // monotone fault latch survives old-generation pruning
+	keys     []*key                  // all generations must be drained on shutdown
+	pending  map[*packetGuard]packet // queued records owning leases
+	e        *egress
 }
 
 func validDependency(v any) bool {
@@ -289,7 +290,7 @@ func validProvider(p processor) bool {
 }
 
 const (
-	faultPoisoned = uint64(1) << 0
+	faultPoisoned   = uint64(1) << 0
 	faultWipeFailed = uint64(1) << 1
 )
 

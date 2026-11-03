@@ -34,12 +34,16 @@ func (w *countWire) send(_ uint64, b []byte) error {
 }
 
 type valProc struct{ material [32]byte }
+
 func (v valProc) claim() bool { return true } // negative test: value types rejected regardless
 
 func (v valProc) process(_ uint64, b []byte) ([]byte, error) { return append([]byte(nil), b...), nil }
 func (v valProc) wipe()                                      { clear(v.material[:]) }
 
-type inplaceProc struct { providerClaim; x int }
+type inplaceProc struct {
+	providerClaim
+	x int
+}
 
 func (*inplaceProc) process(_ uint64, b []byte) ([]byte, error) { return b, nil }
 func (*inplaceProc) wipe()                                      {}
