@@ -55,7 +55,9 @@ var wireMagic = [4]byte{'Q', 'K', '1', '7'}
 
 // The fixed-size 20-byte frame contains NO secret bytes or payload field.
 // wire: magic[4] version[1] opcode[1] status[1] reserved[1]
-//       request_id[4] value[8], all multibyte fields big-endian.
+//
+//	request_id[4] value[8], all multibyte fields big-endian.
+//
 // A response sets opcode's high bit. Request fields status/value must be 0.
 type frame struct {
 	op     Opcode
@@ -74,7 +76,7 @@ func readFrame(r io.Reader) (frame, error) {
 	}
 	return frame{
 		op: Opcode(buf[5]), status: buf[6],
-		id: binary.BigEndian.Uint32(buf[8:12]),
+		id:    binary.BigEndian.Uint32(buf[8:12]),
 		value: binary.BigEndian.Uint64(buf[12:20]),
 	}, nil
 }
