@@ -1,0 +1,84 @@
+--- a/internal/qazwireexp/staged16/supervisor_linux.go
++++ b/internal/qazwireexp/staged16/supervisor_linux.go
+@@ -10,7 +10,6 @@
+ import (
+ 	"context"
+ 	"errors"
+-	"io"
+ 	"os"
+ 	"os/exec"
+ 	"syscall"
+@@ -65,24 +64,37 @@
+ 	}
+ 	begin := time.Now()
+ 	cmd := exec.Command(path, args...)
+-	cmd.Env = append(os.Environ(), extraEnv...)
+-	cmd.Stdout, cmd.Stderr = io.Discard, io.Discard
+-	// Setpgid isolates our synthetic child from the supervisor's own group.
+-	// Pdeathsig handles direct-child death if the supervisor process exits.
+-	cmd.SysProcAttr = &syscall.SysProcAttr{
+-		Setpgid:   true,
+-		Pdeathsig: syscall.SIGKILL,
++	// FIX R5-08 (env): the child receives only the caller-selected variables,
++	// never the supervisor's own environment.
++	cmd.Env = append([]string(nil), extraEnv...)
++	// FIX R5-03: nil Stdout/Stderr connect the child to /dev/null. No pipe is
++	// created, so a descendant cannot keep cmd.Wait() blocked after the
++	// direct child has been reaped.
++	cmd.Stdout, cmd.Stderr = nil, nil
++	// FIX R5-04/05/07: the child is PID 1 of a new PID namespace. When it
++	// exits or is killed, the kernel SIGKILLs every process of the namespace,
++	// including descendants that called setsid(). Pdeathsig ties that to the
++	// death of the supervisor. Without CAP_SYS_ADMIN an unprivileged user
++	// namespace is required; if it cannot be created the start fails closed.
++	attr := &syscall.SysProcAttr{
++		Setpgid:    true,
++		Pdeathsig:  syscall.SIGKILL,
++		Cloneflags: syscall.CLONE_NEWPID,
++	}
++	if uid, gid := os.Geteuid(), os.Getegid(); uid != 0 {
++		attr.Cloneflags |= syscall.CLONE_NEWUSER
++		attr.UidMappings = []syscall.SysProcIDMap{{ContainerID: uid, HostID: uid, Size: 1}}
++		attr.GidMappings = []syscall.SysProcIDMap{{ContainerID: gid, HostID: gid, Size: 1}}
+ 	}
++	cmd.SysProcAttr = attr
+ 	if err := cmd.Start(); err != nil {
+ 		return Result{Status: StartFail, Elapsed: time.Since(begin)}, err
+ 	}
+ 	reaped := make(chan error, 1)
+ 	go func() { reaped <- cmd.Wait() }()
+-	select {
+-	case err := <-reaped:
+-		// A group member could have left descendants behind. Best-effort
+-		// group cleanup even when the direct child exits on its own.
+-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
++	finished := func(err error) (Result, error) {
++		// No signal after reaping: the PID could already belong to another
++		// process (FIX R5-05). The namespace took its descendants with it.
+ 		result := Result{Status: Completed, Reaped: true, ExitCode: 0, Elapsed: time.Since(begin)}
+ 		if err != nil {
+ 			result.Status = Nonzero
+@@ -90,11 +102,20 @@
+ 			return result, errors.Join(ErrChildFailed, err)
+ 		}
+ 		return result, nil
++	}
++	select {
++	case err := <-reaped:
++		return finished(err)
+ 	case <-ctx.Done():
++		select {
++		case err := <-reaped: // exited concurrently with the deadline (FIX R5-06)
++			return finished(err)
++		default:
++		}
+ 		// External Stage D: no request to the hung child is required.
+-		// SIGKILL a dedicated group; then reap the direct child.
+-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+-		_ = cmd.Process.Kill() // fallback for missing process group
++		// Killing PID 1 of the namespace kills every descendant. os.Process
++		// signals through a pidfd where available, so it cannot hit a reused PID.
++		_ = cmd.Process.Kill()
+ 		result := Result{Status: Killed, GroupKillAttempted: true, Elapsed: time.Since(begin)}
+ 		select {
+ 		case <-reaped:

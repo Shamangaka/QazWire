@@ -1,0 +1,226 @@
+
+### K1: 2 workers (consume, discard), 2 rotations, Stop, AwaitDestroyed [PATCHED]
+states: 3192, terminal: 135
+  safety bytes_over_budget           : holds
+  safety byte_counters_wrong         : holds
+  safety slots_over_cap              : holds
+  safety inflight_counter_wrong      : holds
+  safety refs_wrong                  : holds
+  safety wipe_under_lease            : holds
+  safety record_from_wiped           : holds
+  safety stale_pending               : holds
+  safety stale_record                : holds
+  safety dup_record                  : holds
+  safety dup_material_seq            : holds
+  safety pending_after_stop          : holds
+  safety admitted_after_stop         : holds
+  safety unlisted_live_generation    : holds
+  safety await_nil_unsound           : holds
+  safety backlog_without_inflight    : holds
+  final-state properties: hold
+  observation await_blocked_by_hung   : unreachable
+  observation prepare_errrotated      : unreachable
+  observation budget_rejected         : unreachable
+  observation capacity_rejected       : unreachable
+  observation backlog_stop            : unreachable
+
+### K2: 3 workers, budget 2 bytes, maxInFlight 1, 1 rotation, Stop, Await [PATCHED]
+states: 4497, terminal: 114
+  safety bytes_over_budget           : holds
+  safety byte_counters_wrong         : holds
+  safety slots_over_cap              : holds
+  safety inflight_counter_wrong      : holds
+  safety refs_wrong                  : holds
+  safety wipe_under_lease            : holds
+  safety record_from_wiped           : holds
+  safety stale_pending               : holds
+  safety stale_record                : holds
+  safety dup_record                  : holds
+  safety dup_material_seq            : holds
+  safety pending_after_stop          : holds
+  safety admitted_after_stop         : holds
+  safety unlisted_live_generation    : holds
+  safety await_nil_unsound           : holds
+  safety backlog_without_inflight    : holds
+  final-state properties: hold
+  observation await_blocked_by_hung   : unreachable
+  observation prepare_errrotated      : unreachable
+  observation budget_rejected         : REACHABLE
+  observation capacity_rejected       : unreachable
+  observation backlog_stop            : unreachable
+
+### K3: 1 worker x2 prepares, 3 rotations, maxPinned 1, Stop, Await [PATCHED]
+states: 1011, terminal: 104
+  safety bytes_over_budget           : holds
+  safety byte_counters_wrong         : holds
+  safety slots_over_cap              : holds
+  safety inflight_counter_wrong      : holds
+  safety refs_wrong                  : holds
+  safety wipe_under_lease            : holds
+  safety record_from_wiped           : holds
+  safety stale_pending               : holds
+  safety stale_record                : holds
+  safety dup_record                  : holds
+  safety dup_material_seq            : holds
+  safety pending_after_stop          : holds
+  safety admitted_after_stop         : holds
+  safety unlisted_live_generation    : holds
+  safety await_nil_unsound           : holds
+  safety backlog_without_inflight    : holds
+  final-state properties: hold
+  observation await_blocked_by_hung   : unreachable
+  observation prepare_errrotated      : unreachable
+  observation budget_rejected         : unreachable
+  observation capacity_rejected       : unreachable
+  observation backlog_stop            : REACHABLE
+
+### K4: worker 0 may hang in the gap, 2 rotations, maxPinned 1, Stop, Await [PATCHED]
+states: 3041, terminal: 162
+  safety bytes_over_budget           : holds
+  safety byte_counters_wrong         : holds
+  safety slots_over_cap              : holds
+  safety inflight_counter_wrong      : holds
+  safety refs_wrong                  : holds
+  safety wipe_under_lease            : holds
+  safety record_from_wiped           : holds
+  safety stale_pending               : holds
+  safety stale_record                : holds
+  safety dup_record                  : holds
+  safety dup_material_seq            : holds
+  safety pending_after_stop          : holds
+  safety admitted_after_stop         : holds
+  safety unlisted_live_generation    : holds
+  safety await_nil_unsound           : holds
+  safety backlog_without_inflight    : holds
+  final-state properties: hold
+  observation await_blocked_by_hung   : REACHABLE
+  observation prepare_errrotated      : unreachable
+  observation budget_rejected         : unreachable
+  observation capacity_rejected       : unreachable
+  observation backlog_stop            : REACHABLE
+
+### K5: worker 0 may panic in the gap (poison), 1 rotation, Await [PATCHED]
+states: 246, terminal: 22
+  safety bytes_over_budget           : holds
+  safety byte_counters_wrong         : holds
+  safety slots_over_cap              : holds
+  safety inflight_counter_wrong      : holds
+  safety refs_wrong                  : holds
+  safety wipe_under_lease            : holds
+  safety record_from_wiped           : holds
+  safety stale_pending               : holds
+  safety stale_record                : holds
+  safety dup_record                  : holds
+  safety dup_material_seq            : holds
+  safety pending_after_stop          : holds
+  safety admitted_after_stop         : holds
+  safety unlisted_live_generation    : holds
+  safety await_nil_unsound           : holds
+  safety backlog_without_inflight    : holds
+  final-state properties: hold
+  observation await_blocked_by_hung   : unreachable
+  observation prepare_errrotated      : unreachable
+  observation budget_rejected         : unreachable
+  observation capacity_rejected       : unreachable
+  observation backlog_stop            : unreachable
+
+### K6: 3 zero-length payloads, maxPendingTickets 2, 1 rotation, Stop [PATCHED]
+states: 4443, terminal: 160
+  safety bytes_over_budget           : holds
+  safety byte_counters_wrong         : holds
+  safety slots_over_cap              : holds
+  safety inflight_counter_wrong      : holds
+  safety refs_wrong                  : holds
+  safety wipe_under_lease            : holds
+  safety record_from_wiped           : holds
+  safety stale_pending               : holds
+  safety stale_record                : holds
+  safety dup_record                  : holds
+  safety dup_material_seq            : holds
+  safety pending_after_stop          : holds
+  safety admitted_after_stop         : holds
+  safety unlisted_live_generation    : holds
+  safety await_nil_unsound           : holds
+  safety backlog_without_inflight    : holds
+  final-state properties: hold
+  observation await_blocked_by_hung   : unreachable
+  observation prepare_errrotated      : unreachable
+  observation budget_rejected         : unreachable
+  observation capacity_rejected       : REACHABLE
+  observation backlog_stop            : unreachable
+
+### K7: no Stop: 2 workers (one loops twice), 2 rotations; retired generations must be wiped and pruned [PATCHED]
+states: 577, terminal: 76
+  safety bytes_over_budget           : holds
+  safety byte_counters_wrong         : holds
+  safety slots_over_cap              : holds
+  safety inflight_counter_wrong      : holds
+  safety refs_wrong                  : holds
+  safety wipe_under_lease            : holds
+  safety record_from_wiped           : holds
+  safety stale_pending               : holds
+  safety stale_record                : holds
+  safety dup_record                  : holds
+  safety dup_material_seq            : holds
+  safety pending_after_stop          : holds
+  safety admitted_after_stop         : holds
+  safety unlisted_live_generation    : holds
+  safety await_nil_unsound           : holds
+  safety backlog_without_inflight    : holds
+  final-state properties: hold
+  observation await_blocked_by_hung   : unreachable
+  observation prepare_errrotated      : unreachable
+  observation budget_rejected         : REACHABLE
+  observation capacity_rejected       : unreachable
+  observation backlog_stop            : unreachable
+
+### K8: 3 workers (one may hang), 2 rotations, maxPinned 2, Stop, Await [PATCHED]
+states: 74562, terminal: 1238
+  safety bytes_over_budget           : holds
+  safety byte_counters_wrong         : holds
+  safety slots_over_cap              : holds
+  safety inflight_counter_wrong      : holds
+  safety refs_wrong                  : holds
+  safety wipe_under_lease            : holds
+  safety record_from_wiped           : holds
+  safety stale_pending               : holds
+  safety stale_record                : holds
+  safety dup_record                  : holds
+  safety dup_material_seq            : holds
+  safety pending_after_stop          : holds
+  safety admitted_after_stop         : holds
+  safety unlisted_live_generation    : holds
+  safety await_nil_unsound           : holds
+  safety backlog_without_inflight    : holds
+  final-state properties: hold
+  observation await_blocked_by_hung   : REACHABLE
+  observation prepare_errrotated      : unreachable
+  observation budget_rejected         : unreachable
+  observation capacity_rejected       : unreachable
+  observation backlog_stop            : unreachable
+
+### K9: 3 workers (two loop twice), 3 rotations, ticket exhaustion, Stop, Await [PATCHED]
+states: 2064406, terminal: 9630
+  safety bytes_over_budget           : holds
+  safety byte_counters_wrong         : holds
+  safety slots_over_cap              : holds
+  safety inflight_counter_wrong      : holds
+  safety refs_wrong                  : holds
+  safety wipe_under_lease            : holds
+  safety record_from_wiped           : holds
+  safety stale_pending               : holds
+  safety stale_record                : holds
+  safety dup_record                  : holds
+  safety dup_material_seq            : holds
+  safety pending_after_stop          : holds
+  safety admitted_after_stop         : holds
+  safety unlisted_live_generation    : holds
+  safety await_nil_unsound           : holds
+  safety backlog_without_inflight    : holds
+  final-state properties: hold
+  observation await_blocked_by_hung   : unreachable
+  observation prepare_errrotated      : unreachable
+  observation budget_rejected         : unreachable
+  observation capacity_rejected       : unreachable
+  observation backlog_stop            : REACHABLE
+exit=0 elapsed 245s

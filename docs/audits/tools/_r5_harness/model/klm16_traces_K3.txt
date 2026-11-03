@@ -1,0 +1,35 @@
+
+### K3: 1 worker x2 prepares, 3 rotations, maxPinned 1, Stop, Await
+states: 921, terminal: 90
+  safety bytes_over_budget           : holds
+  safety byte_counters_wrong         : holds
+  safety slots_over_cap              : holds
+  safety inflight_counter_wrong      : holds
+  safety refs_wrong                  : holds
+  safety wipe_under_lease            : holds
+  safety record_from_wiped           : holds
+  safety stale_pending               : holds
+  safety stale_record                : holds
+  safety dup_record                  : holds
+  safety dup_material_seq            : holds
+  safety pending_after_stop          : holds
+  safety admitted_after_stop         : holds
+  safety unlisted_live_generation    : holds
+  safety await_nil_unsound           : holds
+  safety backlog_without_inflight    : VIOLATED
+  final-state properties: hold
+  observation await_blocked_by_hung   : unreachable
+  observation prepare_errrotated      : unreachable
+  observation budget_rejected         : unreachable
+  observation capacity_rejected       : unreachable
+  observation backlog_stop            : REACHABLE
+  shortest trace for backlog_without_inflight:
+     1. W0: admit g0 seq 0 (attempt 0)
+     2. W0: queued ticket t0 on g0
+     3. R: rotate -> current g1, previous g0
+     4. R: rotate -> ErrBacklog (stop)
+  shortest trace for backlog_stop:
+     1. W0: admit g0 seq 0 (attempt 0)
+     2. R: rotate -> current g1, previous g0
+     3. R: rotate -> ErrBacklog (stop)
+exit=0 elapsed 0s
