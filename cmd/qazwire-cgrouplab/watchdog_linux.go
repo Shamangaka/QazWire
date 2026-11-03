@@ -207,7 +207,10 @@ func observeCgroupGone(path string, parentFD, childFD int) (bool, string, error)
 		}
 		return false, "", nil
 	}
-	if errors.Is(err, os.ErrNotExist) {
+	if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENODEV) {
+		// The unit may disappear between Open and Read (as observed in M1.7.1).
+		// ENODEV alone never implies success: require exact path removal plus
+		// both previously opened pidfds observing process exit.
 		if _, stErr := os.Stat(path); errors.Is(stErr, os.ErrNotExist) {
 			return true, "CGROUP_REMOVED_PLUS_PIDFDS", nil
 		}
