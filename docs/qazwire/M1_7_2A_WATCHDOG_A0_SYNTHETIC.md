@@ -15,7 +15,7 @@ This is an **application-level** gate only. Any process able to send packets out
   - refuses root, foreign unit path, unexpected `memory.max` and `pids.max`, malformed IDs;
   - verifies worker parent and descendant membership, pins both with pidfd, validates membership again, and opens the target `cgroup.kill` before arming the gate;
   - creates a private 0600 Unix socket in the 0700 test directory. Socket receives `S` and returns `ALLOW\n` or `DENY!\n`; no traffic is transmitted. The gate starts DENY.
-  - admits **synthetic** requests only while worker heartbeat is fresh and watcher alive; after stale pulse or exited main process the gate is permanently fenced before cgroup kill is attempted.
+  - admits **synthetic** requests only while worker heartbeat is fresh and watcher alive; at most 16 concurrent socket handlers are allowed, with excess connections refused. After stale pulse or exited main process the gate is permanently fenced before cgroup kill is attempted.
   - writes fsynced diagnostic events: `WATCH_READY_GATE_ARMED`, `A0_SOFT_DENY_BEFORE_KILL reason=...`, `CGROUP_KILL_ATTEMPTED`, `KILL_CONFIRMED <proof>`, or `NOT_CONFIRMED`.
   - observes either (a) direct `cgroup.events populated=0` AND both original pidfds exited, or (b) exact cgroup path missing AND both original pidfds exited. Never calls this a physical memory erase.
 - `gate` command is a synthetic client: anything other than an exact `ALLOW\n` returns exit code 1 / `A0_SOFT_DENY` — socket missing, error, unsupported response, timeout, or fenced session.
