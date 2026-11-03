@@ -13,7 +13,7 @@ Target owner commit: `45984d70b46c86c87bad85d3825a736c75994f6a`. Audit harness c
 - In a **disposable `git archive` snapshot**, patch `patches/r42_02_clear_retired_capacity.patch` applied. The same R42-02 test then **PASS with `-race`**. Evidence line: `R42-02 PATCHED CONTROL PASS; R42-01 remains a design blocker`.
 - No feature-branch writes or merges.
 
-A later audit-only harness revision adds `TestR42_01b_WipingOneProviderBreaksAnother` to directly demonstrate that wiping shared material in the first session interrupts a second live synthetic session. **This additional test requires its own green workflow run before its effect can be marked independently observed.** All earlier evidence remains anchored to run #41591986302.
+**Additional independent CI:** GitHub Actions [run #41592174563](https://github.com/Shamangaka/QazWire/actions/runs/41592174563), head `d2d25ea41221e6489e022de0ef51bf4ae99ec77f`, conclusion `success`. The new negative `TestR42_01b_WipingOneProviderBreaksAnother` showed that wiping the first provider makes an otherwise-live second session return `sessionlab: synthetic provider fault; key poisoned` when both providers reference the same backing material. This confirms *impact*, not just acceptance of material aliasing. The same run reproduced R42-01, R42-02 and recorded `R42-02 PATCHED CONTROL PASS` after applying the proposed patch **only to a temporary snapshot**.
 
 ## Precision and limitations
 
