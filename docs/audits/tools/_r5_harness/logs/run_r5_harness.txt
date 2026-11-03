@@ -1,0 +1,48 @@
+PR #17 @ aa27727acbb700d622e562da350e684d4b8d11ee
+klm.go blob: 627493903bf070f748bc4276281457ba456e7b2d (expected 6274939...)
+supervisor_linux.go blob: 372b93a6452b91adc3170bbbd4ccc48a01db4fea (expected 372b93a...)
+== 1) UNMODIFIED code: owner tests + R5 demonstrations and interleavings (-race, 3 runs)
+    r5_blackbox_test.go:53: CONFIRMED R5-01: no operation in flight, one ticket queued on the previous generation; the second Rotate returned klm16: pinned retired generation budget exceeded and stopped the session instead of flushing the queue
+    r5_blackbox_test.go:103: CONFIRMED R5-E1: two process lifetimes produced identical (SessionID/Epoch/MaterialID/Sequence/material-hash) tuples: 1/1/1/0/9f4e254ce15c5cef;1/2/2/0/90950d167253c8a6;
+    r5_interleave_test.go:208: VERIFIED-in-test: a parked operation keeps destruction unconfirmed (ErrDeadline x3); only an external Stage D can end it
+    r5_external_test.go:49: CONFIRMED R5-02a: an external package read 32 material bytes through reflect (no unsafe); the copy survives a successful AwaitDestroyed
+    r5_external_test.go:92: CONFIRMED R5-02b: reflect cloned the sealed owner; clone.AwaitDestroyed()=nil while the original stayed open and produced record epoch=2 material=107
+    r5_blackbox_test.go:53: CONFIRMED R5-01: no operation in flight, one ticket queued on the previous generation; the second Rotate returned klm16: pinned retired generation budget exceeded and stopped the session instead of flushing the queue
+    r5_blackbox_test.go:103: CONFIRMED R5-E1: two process lifetimes produced identical (SessionID/Epoch/MaterialID/Sequence/material-hash) tuples: 1/1/1/0/9f4e254ce15c5cef;1/2/2/0/90950d167253c8a6;
+    r5_interleave_test.go:208: VERIFIED-in-test: a parked operation keeps destruction unconfirmed (ErrDeadline x3); only an external Stage D can end it
+    r5_external_test.go:49: CONFIRMED R5-02a: an external package read 32 material bytes through reflect (no unsafe); the copy survives a successful AwaitDestroyed
+    r5_external_test.go:92: CONFIRMED R5-02b: reflect cloned the sealed owner; clone.AwaitDestroyed()=nil while the original stayed open and produced record epoch=2 material=214
+    r5_blackbox_test.go:53: CONFIRMED R5-01: no operation in flight, one ticket queued on the previous generation; the second Rotate returned klm16: pinned retired generation budget exceeded and stopped the session instead of flushing the queue
+    r5_blackbox_test.go:103: CONFIRMED R5-E1: two process lifetimes produced identical (SessionID/Epoch/MaterialID/Sequence/material-hash) tuples: 1/1/1/0/9f4e254ce15c5cef;1/2/2/0/90950d167253c8a6;
+    r5_interleave_test.go:208: VERIFIED-in-test: a parked operation keeps destruction unconfirmed (ErrDeadline x3); only an external Stage D can end it
+    r5_external_test.go:49: CONFIRMED R5-02a: an external package read 32 material bytes through reflect (no unsafe); the copy survives a successful AwaitDestroyed
+    r5_external_test.go:92: CONFIRMED R5-02b: reflect cloned the sealed owner; clone.AwaitDestroyed()=nil while the original stayed open and produced record epoch=2 material=321
+ok  	golang.zx2c4.com/wireguard/internal/qazwireexp/klm16	7.687s
+    r5_staged_test.go:144: CONFIRMED R5-03: the direct child exited with status 0 at once, but RunSyntheticChild waited 1.502s for the pipe held by grandchild 6334 and returned Status="deadline-killed", err=context deadline exceeded
+    r5_staged_test.go:164: CONFIRMED R5-04: after the Stage-D group SIGKILL the escaped grandchild 6359 is still running; the killed direct child 6353 was reported as Status="reap-unconfirmed" (err=staged16: child could not be reaped after kill
+    r5_staged_test.go:188: CONFIRMED R5-07: supervisor SIGKILL -> direct child 6394 died (Pdeathsig), grandchild 6401 in the same process group keeps running
+    r5_staged_test.go:222: CONFIRMED R5-08: child inherited supervisor fd 5 (/tmp/TestR5_08_InheritedDescriptorsEnvAndLimits480911503/001/supervisor-only) and the supervisor environment; no limits are set by the supervisor:
+    r5_staged_test.go:144: CONFIRMED R5-03: the direct child exited with status 0 at once, but RunSyntheticChild waited 1.503s for the pipe held by grandchild 6440 and returned Status="deadline-killed", err=context deadline exceeded
+    r5_staged_test.go:164: CONFIRMED R5-04: after the Stage-D group SIGKILL the escaped grandchild 6452 is still running; the killed direct child 6446 was reported as Status="reap-unconfirmed" (err=staged16: child could not be reaped after kill
+    r5_staged_test.go:188: CONFIRMED R5-07: supervisor SIGKILL -> direct child 6468 died (Pdeathsig), grandchild 6475 in the same process group keeps running
+    r5_staged_test.go:222: CONFIRMED R5-08: child inherited supervisor fd 5 (/tmp/TestR5_08_InheritedDescriptorsEnvAndLimits3674206214/001/supervisor-only) and the supervisor environment; no limits are set by the supervisor:
+    r5_staged_test.go:144: CONFIRMED R5-03: the direct child exited with status 0 at once, but RunSyntheticChild waited 1.501s for the pipe held by grandchild 6509 and returned Status="deadline-killed", err=context deadline exceeded
+    r5_staged_test.go:164: CONFIRMED R5-04: after the Stage-D group SIGKILL the escaped grandchild 6522 is still running; the killed direct child 6516 was reported as Status="reap-unconfirmed" (err=staged16: child could not be reaped after kill
+    r5_staged_test.go:188: CONFIRMED R5-07: supervisor SIGKILL -> direct child 6536 died (Pdeathsig), grandchild 6543 in the same process group keeps running
+    r5_staged_test.go:222: CONFIRMED R5-08: child inherited supervisor fd 5 (/tmp/TestR5_08_InheritedDescriptorsEnvAndLimits259565227/001/supervisor-only) and the supervisor environment; no limits are set by the supervisor:
+ok  	golang.zx2c4.com/wireguard/internal/qazwireexp/staged16	25.487s
+== 2) PATCHED copy: owner tests + R5 tests not affected by the patches + fix tests (-race, 10 runs)
+ok  	golang.zx2c4.com/wireguard/internal/qazwireexp/klm16	23.340s
+ok  	golang.zx2c4.com/wireguard/internal/qazwireexp/staged16	48.720s
+== 2b) the defect demonstrations on the PATCHED copy (expected: FAIL = not reproduced)
+--- FAIL: TestR5_01_QueuedPreviousTicketTriggersBacklogStop (0.00s)
+FAIL
+FAIL	golang.zx2c4.com/wireguard/internal/qazwireexp/klm16	0.012s
+--- FAIL: TestR5_03_InheritedPipeTurnsCompletionIntoKill (10.02s)
+--- FAIL: TestR5_04_EscapedDescendantSurvivesStageD (0.90s)
+--- FAIL: TestR5_07_SupervisorDeathLeavesDescendants (0.51s)
+--- FAIL: TestR5_08_InheritedDescriptorsEnvAndLimits (0.01s)
+FAIL
+FAIL	golang.zx2c4.com/wireguard/internal/qazwireexp/staged16	11.455s
+FAIL
+harness exit=0 elapsed 92s

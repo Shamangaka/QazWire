@@ -1,0 +1,43 @@
+--- a/internal/qazwireexp/klm16/klm.go
++++ b/internal/qazwireexp/klm16/klm.go
+@@ -456,6 +456,21 @@
+ 		return ErrEpochExhausted
+ 	}
+ 	old := s.current
++	// Discard all earlier generations and queued tickets before publishing.
++	for _, g := range s.generations {
++		if g != old {
++			g.retiring = true
++			g.discard = true
++		}
++	}
++	for state := range s.pending {
++		if state.gen != old {
++			s.removeTicketLocked(state)
++		}
++	}
++	// FIX R5-01: count generations pinned by IN-FLIGHT work only. Queued
++	// tickets of superseded generations were just flushed above and no
++	// longer hold references.
+ 	pinned := 0
+ 	for _, g := range s.generations {
+ 		if g != old && g.refs > 0 {
+@@ -471,18 +486,6 @@
+ 		s.stopLocked(err)
+ 		return err
+ 	}
+-	// Discard all earlier generations and queued tickets before publishing.
+-	for _, g := range s.generations {
+-		if g != old {
+-			g.retiring = true
+-			g.discard = true
+-		}
+-	}
+-	for state := range s.pending {
+-		if state.gen != old {
+-			s.removeTicketLocked(state)
+-		}
+-	}
+ 	old.retiring = true
+ 	s.finishLocked(old)
+ 	fresh := &generation{

@@ -1,0 +1,11 @@
+--- PASS: TestR5Fix_03_NormalExitIsCompletedPromptly (1.12s)
+--- PASS: TestR5Fix_04_EscapedDescendantKilled (0.91s)
+--- PASS: TestR5Fix_07_SupervisorDeathKillsDescendants (0.57s)
+--- PASS: TestR5Fix_08_SupervisorEnvironmentNotInherited (1.02s)
+--- PASS: TestR5StagedHelper (0.00s)
+--- PASS: TestStageDHelperProcess (0.00s)
+--- PASS: TestM161_StageDRejectsMissingDeadline (0.00s)
+--- PASS: TestM161_StageDIndependentWatchdogKillsHungChild (0.12s)
+--- PASS: TestM161_StageDNormalChildExitAndError (1.04s)
+PASS
+exit=0
