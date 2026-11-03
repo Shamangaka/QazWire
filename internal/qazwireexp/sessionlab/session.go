@@ -312,24 +312,34 @@ func newSession(p processor, w wire, maxTickets uint64) (*session, error) {
 }
 
 func (s *session) prepare(payload []byte) (packet, error) {
-	s.mu.RLock()
-	if s.closed {
+	var k *key
+	var pkt packet
+	var err error
+	for attempt := 0; attempt < 2; attempt++ {
+		s.mu.RLock()
+		if s.closed {
+			s.mu.RUnlock()
+			return packet{}, errClosed
+		}
+		k = s.k
 		s.mu.RUnlock()
-		return packet{}, errClosed
+		pkt, err = k.seal(payload)
+		if !errors.Is(err, errClosed) {
+			break
+		}
 	}
-	k := s.k
-	s.mu.RUnlock()
-	pkt, err := k.seal(payload)
 	if err != nil {
 		if errors.Is(err, errProviderFault) {
+			s.faults.Or(faultPoisoned)
 			s.beginEmergency()
 		}
 		return packet{}, err
 	}
 	s.mu.Lock()
-	if s.closed {
+	// An old in-flight operation can outlive TWO rotations: never admit
+	// output from a generation older than the immediately previous one.
+	if s.closed || (k != s.k && k != s.previous) || k.gate.state.Load()&discardFlag != 0 {
 		s.mu.Unlock()
-		// Reservation is irrevocably burnt; release the pending key reference.
 		pkt.guard.used.Store(true)
 		k.gate.leave()
 		clear(pkt.data)
@@ -337,6 +347,7 @@ func (s *session) prepare(payload []byte) (packet, error) {
 	}
 	s.pending[pkt.guard] = pkt
 	s.mu.Unlock()
+	pkt.data = nil // the queue (not its caller) owns the output buffer
 	return pkt, nil
 }
 
@@ -390,7 +401,7 @@ func (s *session) dispatch(p packet) (err error) {
 // rotate serializes publishing a new generation with the emergency snapshot.
 // No new key can be installed once s.closed was set under the same mutex.
 func (s *session) rotate(p processor, maxTickets uint64) error {
-	if !validDependency(p) || maxTickets == 0 {
+	if !validProvider(p) || maxTickets == 0 {
 		return errInvalid
 	}
 	s.mu.Lock()
@@ -398,10 +409,37 @@ func (s *session) rotate(p processor, maxTickets uint64) error {
 	if s.closed {
 		return errClosed
 	}
+	if !p.claim() {
+		return errProviderReuse
+	}
 	old := s.k
-	fresh := newKey(p, maxTickets)
+	// Older-than-previous generations must be unable to enqueue an output
+	// even if their process() was admitted before this rotation.
+	for _, retired := range s.keys {
+		if retired != old {
+			retired.gate.beginDiscard()
+		}
+	}
+	for guard, queued := range s.pending {
+		if guard.owner != old && guard.used.CompareAndSwap(false, true) {
+			delete(s.pending, guard)
+			clear(queued.data)
+			guard.owner.gate.leave()
+		}
+	}
+	live := s.keys[:0]
+	for _, existing := range s.keys {
+		select {
+		case <-existing.gate.done:
+			// A completed wipe was confirmed; its fault remains latched.
+		default:
+			live = append(live, existing)
+		}
+	}
+	fresh := s.newKeyOwned(p, maxTickets)
+	s.previous = old
 	s.k = fresh
-	s.keys = append(s.keys, fresh)
+	s.keys = append(live, fresh)
 	old.gate.beginClose()
 	return nil
 }
@@ -421,7 +459,7 @@ func (s *session) beginEmergency() {
 		delete(s.pending, guard)
 	}
 	for _, k := range s.keys {
-		k.gate.beginClose()
+		k.gate.beginDiscard()
 	}
 	s.mu.Unlock()
 }
@@ -447,6 +485,9 @@ func (s *session) awaitDrained(ctx context.Context) error {
 		if err := k.gate.await(ctx); err != nil {
 			return err
 		}
+	}
+	if s.faults.Load()&faultWipeFailed != 0 {
+		return errWipeFailed
 	}
 	return nil
 }
