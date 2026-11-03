@@ -38,19 +38,28 @@ chmod 0700 "$dir"
 worker_created=0
 peer_created=0
 cleanup() {
+  local status=$?
+  trap - EXIT
   set +e
-  # Terminate ONLY tasks which are still associated with our new namespaces.
-  # Never kill a PID based solely on a stale PID file.
+  # This helper is run INSIDE each unique new namespace, and can only
+  # SIGTERM pidfds whose current network namespace matches its own.
   for ns in "$worker_ns" "$peer_ns"; do
     if sudo -n ip netns list | grep -Eq "^$ns( |$)"; then
-      sudo -n ip netns pids "$ns" | while read -r pid; do
-        [[ "$pid" =~ ^[0-9]+$ ]] && sudo -n kill -TERM "$pid" 2>/dev/null || true
-      done
+      sudo -n ip netns exec "$ns" python3 -B "$helper" terminate-members || status=1
     fi
   done
-  if (( worker_created )); then sudo -n ip netns del "$worker_ns" || true; fi
-  if (( peer_created )); then sudo -n ip netns del "$peer_ns" || true; fi
+  if (( worker_created )); then
+    sudo -n ip netns del "$worker_ns" || status=1
+  fi
+  if (( peer_created )); then
+    sudo -n ip netns del "$peer_ns" || status=1
+  fi
+  if sudo -n ip netns list | grep -Eq "^($worker_ns|$peer_ns)( |$)"; then
+    echo "CLEANUP_FAILURE: dedicated test namespace still registered" >&2
+    status=1
+  fi
   rm -rf -- "$dir"
+  exit "$status"
 }
 trap cleanup EXIT
 
@@ -165,8 +174,11 @@ sudo -n ip netns pids "$worker_ns" | grep -Fxq "$watch_pid" || {
   echo "FAIL: renewal process not found in exact test namespace" >&2
   exit 1
 }
-sudo -n kill -KILL "$watch_pid"
-echo "SIGKILL issued to synthetic lease renewer $watch_pid"
+# The helper opens a PIDFD and checks the target process is OUR refresher
+# within THIS network namespace before sending SIGKILL.
+sudo -n ip netns exec "$worker_ns" python3 -B "$helper" \
+  kill-refresher --pid "$watch_pid"
+echo "SIGKILL issued through verified pidfd to synthetic lease renewer $watch_pid"
 
 # A lease active at the moment of death might remain valid before expiry.
 # Report this observable exposure, do NOT describe it as immediate fail-closed.
