@@ -70,8 +70,23 @@ cleanup() {
                 sleep 0.1
             done
             if (( drained == 0 )); then
-                echo "CLEANUP_FAILURE: lab tasks remain in $ns" >&2
-                rc=1
+                # A SIGSTOPed lab-only process cannot process SIGTERM.
+                # Escalate ONLY within this exact fresh lab namespace using
+                # individually verified PIDFDs, never a host-wide process kill.
+                echo "LAB_CLEANUP_ESCALATE: stopped tasks in $ns" >&2
+                sudo -n ip netns exec "$ns" python3 -B "$peer_helper" \
+                    terminate-members --force-kill || rc=1
+                for ((k=0; k<40; k++)); do
+                    if [[ -z "$(sudo -n ip netns pids "$ns" 2>/dev/null)" ]]; then
+                        drained=1
+                        break
+                    fi
+                    sleep 0.1
+                done
+                if (( drained == 0 )); then
+                    echo "CLEANUP_FAILURE: lab tasks still remain in $ns" >&2
+                    rc=1
+                fi
             fi
         fi
     done
@@ -224,8 +239,9 @@ allow() {
 start_worker() {
     local label=$1
     local logfile="$dir/worker-$label.log"
-    worker_exec /usr/bin/python3 -B -u -c "$worker_source" m172d_worker.py \
+    worker_exec /usr/bin/python3 -B -u -c "$worker_source" m172d_worker.py --detach \
         >"$logfile" 2>&1 &
+    local launcher_pid=$!
     local line=""
     for ((i=0; i<90; i++)); do
         if [[ -s "$logfile" ]]; then
@@ -236,6 +252,20 @@ start_worker() {
     done
     [[ -n "$line" ]] || { cat "$logfile"; echo "FAIL: worker not ready" >&2; exit 1; }
     worker_pid="${line#WORKER_READY_PID=}"
+    # All sudo-monitor and original worker-launch parents MUST exit before
+    # we ever send SIGSTOP to the detached session leader.
+    if ! wait "$launcher_pid"; then
+        echo "FAIL: worker's sudo launcher did not exit cleanly" >&2
+        exit 1
+    fi
+    local session pgid
+    session=$(ps -o sid= -p "$worker_pid" | tr -d '[:space:]')
+    pgid=$(ps -o pgid= -p "$worker_pid" | tr -d '[:space:]')
+    if [[ "$session" != "$worker_pid" || "$pgid" != "$worker_pid" ]]; then
+        echo "FAIL: worker did not detach from sudo's process group" >&2
+        exit 1
+    fi
+    echo "WORKER_DETACHED_SESSION_LEADER PID=$worker_pid SID=$session PGID=$pgid"
     sudo -n ip netns pids "$worker_ns" | grep -Fxq "$worker_pid" ||
         { echo "FAIL: worker not in the exact namespace" >&2; exit 1; }
     echo "WORKER_$label PID=$worker_pid"

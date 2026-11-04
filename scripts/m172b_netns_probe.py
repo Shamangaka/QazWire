@@ -125,7 +125,7 @@ def kill_owned_refresher(pid):
 
 
 
-def terminate_namespace_members():
+def terminate_namespace_members(*, force_kill=False):
     """Cleanup ONLY remaining tasks in our current new network namespace.
 
     The helper itself is in the namespace; open each pidfd before confirming
@@ -152,13 +152,15 @@ def terminate_namespace_members():
             if target_ns != our_ns:
                 continue
             try:
-                signal.pidfd_send_signal(fd, signal.SIGTERM, None, 0)
+                sig = signal.SIGKILL if force_kill else signal.SIGTERM
+                signal.pidfd_send_signal(fd, sig, None, 0)
                 count += 1
             except ProcessLookupError:
                 pass
         finally:
             os.close(fd)
-    print(f"LAB_NAMESPACE_TASKS_SIGTERM={count}", flush=True)
+    label = "SIGKILL" if force_kill else "SIGTERM"
+    print(f"LAB_NAMESPACE_TASKS_{label}={count}", flush=True)
 
 
 def main():
@@ -175,7 +177,8 @@ def main():
     r.add_argument("--period", type=float, default=0.25)
     k = sub.add_parser("kill-refresher")
     k.add_argument("--pid", type=int, required=True)
-    sub.add_parser("terminate-members")
+    cleanup = sub.add_parser("terminate-members")
+    cleanup.add_argument("--force-kill", action="store_true")
     args = p.parse_args()
     if args.mode == "serve":
         return serve(args.pidfile)
@@ -187,7 +190,7 @@ def main():
         kill_owned_refresher(args.pid)
         return 0
     if args.mode == "terminate-members":
-        terminate_namespace_members()
+        terminate_namespace_members(force_kill=args.force_kill)
         return 0
     if not 0.1 <= args.period <= 0.5:
         p.error("renewal period must be between 0.1 and 0.5")
