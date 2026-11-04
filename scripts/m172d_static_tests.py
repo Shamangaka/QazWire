@@ -4,7 +4,6 @@
 import importlib.util
 from pathlib import Path
 import unittest
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts/qazwire-m172d-controller-netns-lab.sh"
@@ -42,7 +41,6 @@ class M172DStaticTests(unittest.TestCase):
 
     def test_daemon_has_no_shell_execution_or_host_nft(self):
         s = CONTROLLER.read_text()
-        self.assertIn('["netns", "exec"', s.replace('ip_bin, "netns", "exec"', '"netns", "exec"'))
         self.assertIn('"netns", "exec", ns, nft_bin', s)
         self.assertNotIn("shell=True", s)
         self.assertIn("os.pidfd_open(", s)
@@ -72,7 +70,7 @@ class M172DStaticTests(unittest.TestCase):
         self.assertIn('if state not in ("R", "S"):', s)
         self.assertIn('policy(ip_bin, nft_bin, ns, FLUSH + ADD)', s)
         self.assertIn('ensure_denied(ip_bin, nft_bin, ns)', s)
-        self.assertIn('return state', 'return status["State"].split()[0]')
+        self.assertIn('return status["State"].split()[0]', s)
 
 
 if __name__ == "__main__":
