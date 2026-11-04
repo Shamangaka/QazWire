@@ -3,7 +3,15 @@
 # QazWire M1.7.2d: manual, persistent root policy controller lab.
 # NEVER modifies host nftables/routing/interfaces. No production traffic,
 # VPN, real keys, Qalqan, or claims of instantaneous watchdog-death A0.
-set -euo pipefail
+set -Eeuo pipefail
+
+# Diagnostic evidence: print the failing command location without printing
+# sudo credentials. This trap does not replace the EXIT cleanup.
+on_error() {
+    local rc=$1 line=$2
+    printf 'M172D_COMMAND_FAILED line=%s exit_code=%s\n' "$line" "$rc" >&2
+}
+trap 'on_error "$?" "$LINENO"' ERR
 
 if (( EUID == 0 )); then
     echo "REFUSE: start as non-root; privilege only through explicit sudo" >&2
@@ -73,8 +81,21 @@ cleanup() {
         echo "CLEANUP_FAILURE: namespace names still registered" >&2
         rc=1
     fi
-    rm -rf -- "$dir" || rc=1
-    if (( rc == 0 )); then echo "M1.7.2d CLEANUP PASS"; fi
+    if (( rc != 0 )); then
+        # Never discard controller/worker logs on a failed host experiment.
+        # dir was created by mktemp with 0700 permissions and contains only
+        # synthetic lab diagnostic evidence, not cryptographic key material.
+        echo "M1.7.2d HOST TEST FAILED: exit_code=$rc" >&2
+        echo "M1.7.2d diagnostics preserved at: $dir" >&2
+        echo "Inspect only the files ctrl-A.log, ctrl-B.log, worker-A.log, worker-B.log and peer.log" >&2
+    else
+        rm -rf -- "$dir" || rc=1
+        if (( rc == 0 )); then
+            echo "M1.7.2d CLEANUP PASS"
+        else
+            echo "M1.7.2d cleanup failed while removing private diagnostic directory $dir" >&2
+        fi
+    fi
     exit "$rc"
 }
 trap cleanup EXIT
