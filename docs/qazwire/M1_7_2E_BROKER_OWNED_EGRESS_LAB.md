@@ -1,0 +1,90 @@
+# QazWire M1.7.2e — broker-owned socket and permanent worker kernel deny
+
+**Status: RESEARCH ONLY. Synthetic UDP echo network namespaces; NOT WireGuard VPN, NOT Qalqan, NOT a production supervisor.**
+
+Stacked on Draft PR #27 at exact HEAD `d6843f3b6c6c5d1a71ec82cfde8edce37397d333`. No modifications to `master`.
+
+## Why M1.7.2d cannot meet instant controller-death A0
+
+In M1.7.2d, nftables contains a temporary element granting network access to a capless worker. Linux retains the set element after the privileged grant controller has been killed by `SIGKILL`; the owner's Ubuntu test **proved direct UDP echo still works immediately after controller death**, until the 2-second lease expires. An application-level watchdog cannot revoke an element when the watchdog itself dies.
+
+**M1.7.2e changes the invariant**: an untrusted worker UID 65534 is **never granted an outgoing UDP socket exemption**, even while the broker is alive. A separately running process with UID 65533 owns the UDP socket; only that socket-owner UID may send to the fixed offline peer. Therefore broker death does not leave behind a firewall rule authorizing UID 65534. That is a narrower, fundamentally different property from instant revocation of all broker-authorized packets.
+
+## Exact topology
+
+```text
+New lab namespace qwfa<8-hex>, 198.18.27.1/30
+ ├─ nft inet qw_broker_a0
+ │    OUTPUT: policy DROP
+ │    accept ONLY: src 198.18.27.1 -> 198.18.27.2 UDP/44000
+ │                 meta skuid 65533 (the OWNER of the originating socket)
+ │    INPUT: policy DROP; only UDP/44000 reply from isolated peer
+ │
+ ├─ UID 65534, no Linux capabilities / NoNewPrivs=1
+ │     directly creates UDP sockets → kernel EPERM, ALWAYS
+ │     AF_UNIX IPC query: 8-byte synthetic request token
+ │
+ └─ UID 65533, no Linux capabilities / NoNewPrivs=1
+       detached from sudo's job control (fork + setsid)
+       AF_UNIX abstract socket "\0qw_m172e_<8-hex>"
+         ├─ authenticate SO_PEERCRED UID=GID=65534
+         ├─ restrict message length, format and fixed destination
+         ├─ relay through its own AF_INET UDP socket, **never SCM_RIGHTS**
+         └─ return authenticated echo; no keys, no VPN
+
+New isolated peer namespace qwfb<same nonce>, 198.18.27.2/30
+ └─ two-port synthetic UDP echo server; only 44000 ever permitted
+```
+
+Both interfaces originate inside the two newly created network namespaces. No default route, physical interface, host nftables table or host global route is manipulated by the script. No Internet uplink. The existing `m172b_netns_probe.py` echo server listens to `198.18.27.2` and only echoes `QAZWIRE-M172B-PROBE:` messages; the new broker reuses the same exact address and prefix (code integration requirement).
+
+### Linux mechanism and scope
+
+`meta skuid` matches the **UID associated with the originating socket** (not necessarily the current UID of the process writing to it); it applies to locally generated packets and is meaningful in the OUTPUT path. See authoritative nftables wiki: <https://wiki.nftables.org/wiki-nftables/index.php/Matching_packet_metainformation>.
+
+Linux `AF_UNIX` `SO_PEERCRED` returns kernel peer credentials for connected AF_UNIX sockets. Abstract UNIX names are automatically released after the last reference closes, but **file permissions do not protect abstract sockets**. Hence the synthetic broker checks UID/GID after `accept` and never passes its UDP file descriptor. See `unix(7)`: <https://man7.org/linux/man-pages/man7/unix.7.html>.
+
+These mechanisms do **not** provide a process-exclusivity proof: a process started by host root under UID 65533 can also create a matching UDP socket. A process that inherits or receives an already-open broker-owned socket FD may continue to transmit regardless of its own UID. Distinct Linux namespaces, seccomp, cgroup identity, PID/IPC/mount segregation, FD inheritance control and a protected service manager require future work.
+
+## Owner-host test cases and evidence
+
+`scripts/qazwire-m172e-broker-kernel-a0-netns-lab.sh` is explicit manual sudo-only, not a deployed service. `scripts/m172e_safe_diagnostic_runner.py` adds a safe manual wrapper with exact SHA, clean Git and hashes, separate process group, same TTY for sudo, private full log + JSON, 120s timeout and before/after named namespace verification. **The wrapper itself exits 0 even on LAB failure** to avoid closing an interactive shell with `set -e`; its status MUST be read from `M172E_CLASSIFICATION`, full log and `summary.json`.
+
+The lab must assert in order:
+
+1. `KERNEL_DEFAULT_DROP_LOADED`: nft default DROP installed BEFORE new worker interfaces were brought up, scoped to the new worker namespace. Explicit empty default route.
+2. UID65534 capless fresh-process **direct UDP/44000 and UDP/44001** are denied with `PermissionError`; a timeout or wrong echo is **INCONCLUSIVE**, not a successful kernel deny.
+3. Broker UID65533 starts, forks from the sudo-monitored launcher, `setsid`s and closes inherited TTY FDs; launcher exits; verify `BROKER_DETACHED_SESSION_LEADER PID=... SID=... PGID=...`.
+4. While broker is live, direct UDP from UID65534 is **still denied** for both ports. A synthetic Unix-socket query as UID65534 returns `BROKER_RELAY_ECHO_OK`, proving the broker's UID65533-owned outgoing UDP socket can function under nft. A synthetic client UID65532 is denied by kernel `SO_PEERCRED`; `BROKER_UID_ONLY_RELAY_PASS`.
+5. Root helper pins and verifies exact broker PID with `pidfd`, namespace inode, UID65533, caps=0, NoNewPrivs=1, separate SID/PGID and command identity, then sends targeted `SIGKILL`.
+6. After death, fresh unprivileged UID65534 direct UDP socket remains denied (no permission ever granted) and AF_UNIX IPC is unavailable. The broker's UDP FD should have closed with its process, but the test does not enumerate all inherited FDs or queued network buffers.
+7. Full `M1.7.2e LAB PASS` and `M1.7.2e CLEANUP PASS`; 0 new named `qwfa*/qwfb*` namespace names remain. All synthetic lab data are harmless; no cryptographic material.
+
+**No claim of zero milliseconds**: an already-sent packet can arrive after broker SIGKILL; the kernel may process queued packets. These tests only prove **new direct worker socket creation** remains denied and **new IPC requests** fail after broker death. This is useful but not the same as instantaneous packet/network revocation.
+
+## Reproduction
+
+```bash
+# Confirm current exact SHA from PR, do not reuse historic SHA.
+# New detached worktree; scripts must be reviewed before sudo:
+bash -n scripts/qazwire-m172e-broker-kernel-a0-netns-lab.sh
+python3 -B scripts/m172e_broker_static_tests.py
+python3 -B scripts/m172e_safe_runner_tests.py
+git status --short --untracked-files=all
+
+# ONLY after explicit owner review:
+python3 scripts/m172e_safe_diagnostic_runner.py --expect-sha <EXACT_SHA_FROM_PR>
+```
+
+On `STOP_*`, preserve all output, `summary.json` and `lab-output.log`; inspect live lab PIDs and namespaces read-only first. **Do not rerun blindly**. The lab cleanup has scoped namespace task termination, but failure, abnormal signals or a killed launcher may leave a test namespace registered.
+
+## Known NO-GO and future work
+
+- The broker uses UID/GID only to authenticate IPC, **not a single authorized worker PID**, per-session channel binding, peer identity certificate or replay protection. Reused requests from any UID65534 process within the namespace could be accepted.
+- Broker payload checks are minimal; messages are **unencrypted**, not authenticated cryptographically, no production KLM or negotiated Qalqan transport. There is no WireGuard interoperability claim.
+- Broker Python source is loaded from a user-owned checkout by a root-launching lab shell. No root-owned immutable executable/configuration, service manager or mandatory access control.
+- No process/fd leak detection beyond experiment; user namespace creation, `SCM_RIGHTS`, compromised host root/UID65533 and kernel bugs are outside this lab's threat model.
+- Network damage model: no production routes, Internet, host filtering or active encrypted tunnels under test. No latency or reliability bounds are measured.
+- R5-02/R5-E1, G-Q1/G-Q2 and M2 remain OPEN/NO-GO. No merges to main/master without owner approval.
+
+**Security gate:** M1.7.2e may be called *LAB VERIFIED* only after owner-host evidence at exact pinned SHA passes. CI PASS alone is insufficient.
