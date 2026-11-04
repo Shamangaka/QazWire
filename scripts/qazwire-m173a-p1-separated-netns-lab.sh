@@ -41,7 +41,8 @@ chmod 0711 "$dir"
 mkdir -m 0700 "$dir/private"
 mkdir -m 0710 "$dir/ipc"
 sudo -n chown 65533:65534 "$dir/ipc"
-chmod 0710 "$dir/ipc" || true
+sudo -n chmod 0710 "$dir/ipc"
+[[ "$(sudo -n stat -c '%u:%g:%a' "$dir/ipc")" == "65533:65534:710" ]] || exit 1
 socket_path="$dir/ipc/broker.sock"
 worker_created=0
 broker_created=0
