@@ -36,8 +36,12 @@ class BrokerOwnedEgressContract(unittest.TestCase):
         self.assertIn("meta skuid 65533 counter accept", nft)
         self.assertIn("ip daddr 198.18.27.2 udp dport 44000", nft)
         self.assertNotIn("meta skuid 65534", nft)
-        self.assertNotIn("timeout", nft)
-        self.assertNotIn("flush ruleset", nft)
+        rules = "\n".join(
+            line for line in nft.splitlines()
+            if not line.lstrip().startswith("#")
+        )
+        self.assertNotIn("timeout", rules)
+        self.assertNotIn("flush ruleset", rules)
         self.assertNotIn("ct state established", nft)
 
     def test_nonce_is_strict_and_not_a_path(self):
