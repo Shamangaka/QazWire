@@ -19,6 +19,11 @@ broker="$repo/scripts/m172e_broker.py"
 killer="$repo/scripts/m172e_broker_pidfd_kill.py"
 helper="$repo/scripts/m172b_netns_probe.py"
 [[ -f "$policy" && -f "$broker" && -f "$killer" && -f "$helper" ]] || exit 1
+# The detached UID65533 broker cannot assume access to the human user's
+# home directory. Supply read-only synthetic source via python -c, exactly
+# as the working M1.7.2d lab does for its capless worker.
+broker_source=$(cat "$broker")
+[[ -n "$broker_source" ]] || exit 1
 
 sudo -v
 nonce=$(od -An -N4 -tx1 /dev/urandom | tr -d '[:space:]')
@@ -149,8 +154,8 @@ run_uid() {
         --inh-caps=-all --ambient-caps=-all --bounding-set=-all \
         --no-new-privs --reset-env "$@"
 }
-worker() { run_uid 65534 /usr/bin/python3 -B -u "$broker" "$@"; }
-unauthorized() { run_uid 65532 /usr/bin/python3 -B -u "$broker" "$@"; }
+worker() { run_uid 65534 /usr/bin/python3 -B -u -c "$broker_source" m172e_broker.py "$@"; }
+unauthorized() { run_uid 65532 /usr/bin/python3 -B -u -c "$broker_source" m172e_broker.py "$@"; }
 
 expect_code_and_line() {
     local wanted=$1 marker=$2
@@ -170,7 +175,7 @@ expect_code_and_line 12 "DIRECT_DENIED port=44001" worker direct --port 44001
 echo "========== START DETACHED CAPLESS BROKER UID65533 =========="
 # sudo-monitored launcher MUST EXIT before broker SIGKILL. Broker forked child
 # is a separate session leader with no inherited TTY/stdout descriptors.
-run_uid 65533 /usr/bin/python3 -B -u "$broker" serve --nonce "$nonce" \
+run_uid 65533 /usr/bin/python3 -B -u -c "$broker_source" m172e_broker.py serve --nonce "$nonce" \
     > "$dir/broker.log" 2>&1 &
 launcher_pid=$!
 found=""
