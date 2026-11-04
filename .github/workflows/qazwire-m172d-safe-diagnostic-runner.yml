@@ -1,0 +1,61 @@
+name: QazWire M1.7.2d safe diagnostic runner (no sudo)
+on:
+  push:
+    branches:
+      - feature/m1-7-2d-safe-diagnostic-runner
+  pull_request:
+    branches:
+      - feature/m1-7-2d-supervisor-revoke-lab
+
+permissions:
+  contents: read
+
+jobs:
+  safe-launcher-static:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Print exact SHA
+        run: |
+          git rev-parse HEAD
+          python3 --version
+          go version
+
+      - name: Safe runner offline tests — no sudo or network namespace operations
+        run: |
+          set -euo pipefail
+          bash -n scripts/qazwire-m172d-controller-netns-lab.sh
+          python3 -m py_compile scripts/m172d_safe_diagnostic_runner.py scripts/m172d_safe_runner_tests.py
+          python3 scripts/m172d_safe_runner_tests.py
+          python3 scripts/m172d_static_tests.py
+          python3 scripts/m172c_static_tests.py
+          python3 scripts/m172b_static_tests.py
+          git diff --check
+          test -z "$(gofmt -l cmd/qazwire-cgrouplab/*.go)"
+
+      - name: Prior lab cgroup and watchdog race regressions
+        run: go test -tags qazwire_exp -race -count=10 ./cmd/qazwire-cgrouplab
+
+      - name: M1.7.0 and M1.6.2 regressions
+        run: |
+          go test -tags qazwire_exp -race -count=10 ./internal/qazwireexp/klmproc17 ./internal/qazwireexp/klm16 ./internal/qazwireexp/staged16
+          python3 -I docs/qazwire/tools/r5_klm16_model.py --patched K3 K4 K6 > /tmp/model.txt
+          ! grep -q VIOLATED /tmp/model.txt
+
+      - name: Tagged race and untagged upstream regressions
+        run: |
+          go test -tags qazwire_exp -count=1 ./...
+          go test -tags qazwire_exp -race -count=1 ./...
+          go vet -tags qazwire_exp ./...
+          go test -count=1 ./...
+
+      - name: Clarify evidence boundary
+        run: |
+          echo 'No sudo, nftables rules, root policy controller or lab netns was created by CI.'
+          echo 'Safe runner is manual and intentionally returns 0 even on test failure.'
+          echo 'Owner host test remains unverified until protected log and namespace check.'
