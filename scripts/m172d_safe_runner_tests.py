@@ -97,7 +97,8 @@ class SafeDiagnosticRunnerTest(unittest.TestCase):
 
     def test_no_implicit_test_mode_enters_privileged_lab(self):
         source = MODULE.read_text()
-        self.assertIn("start_new_session=True", source)
+        self.assertIn("process_group=0", source)
+        self.assertNotIn("start_new_session=True", source)
         self.assertIn("subprocess.DEVNULL", source)
         self.assertIn("return 0", source)
         self.assertIn('["sudo", "-v"]', source)
