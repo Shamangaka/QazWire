@@ -63,6 +63,10 @@ def require_worker(pid, ns_ino, fd=None):
         raise RuntimeError("worker exited before identity verification")
     if os.stat(f"/proc/{pid}/ns/net").st_ino != ns_ino:
         raise PermissionError("worker not in the exact lab namespace")
+    # Required before SIGSTOP fault injection: worker cannot still belong to
+    # sudo's monitored command group, otherwise sudo may suspend lab Bash.
+    if os.getsid(pid) != pid or os.getpgid(pid) != pid:
+        raise PermissionError("worker must be a detached session/group leader")
     status = read_status(pid)
     if any(int(uid) != 65534 for uid in status["Uid"].split()):
         raise PermissionError("worker UID is not exclusively 65534")
