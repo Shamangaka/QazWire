@@ -5,10 +5,10 @@
 table inet qw_broker_a0 {
     chain egress {
         type filter hook output priority filter; policy drop;
-        ip saddr 198.18.28.1 ip daddr 198.18.28.2 udp dport 44000 meta skuid 65533 counter accept
+        ip saddr 198.18.27.1 ip daddr 198.18.27.2 udp dport 44000 meta skuid 65533 counter accept
     }
     chain ingress {
         type filter hook input priority filter; policy drop;
-        ip saddr 198.18.28.2 ip daddr 198.18.28.1 udp sport 44000 counter accept
+        ip saddr 198.18.27.2 ip daddr 198.18.27.1 udp sport 44000 counter accept
     }
 }
