@@ -1,0 +1,65 @@
+name: QazWire M1.7.2e broker-owned UDP egress (research only)
+on:
+  push:
+    branches:
+      - feature/m1-7-2e-broker-owned-egress-lab
+  pull_request:
+    branches:
+      - feature/m1-7-2d-detached-worker-stop-lab
+
+permissions:
+  contents: read
+
+jobs:
+  m172e-broker-static:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact SHA
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Exact SHA and toolchain
+        run: |
+          git rev-parse HEAD
+          python3 --version
+          go version
+
+      - name: Offline broker / policy / IPC / pidfd tests — NO SUDO
+        run: |
+          set -euo pipefail
+          bash -n scripts/qazwire-m172e-broker-kernel-a0-netns-lab.sh
+          python3 -B -m py_compile scripts/m172e_broker.py scripts/m172e_broker_pidfd_kill.py scripts/m172e_broker_static_tests.py scripts/m172e_safe_diagnostic_runner.py scripts/m172e_safe_runner_tests.py
+          python3 -B scripts/m172e_broker_static_tests.py
+          python3 -B scripts/m172e_safe_runner_tests.py
+          python3 -B scripts/m172d_detached_worker_tests.py
+          python3 -B scripts/m172d_safe_runner_tests.py
+          python3 -B scripts/m172d_static_tests.py
+          python3 -B scripts/m172c_static_tests.py
+          python3 -B scripts/m172b_static_tests.py
+          git diff --check
+          test -z "$(git status --porcelain --untracked-files=all)"
+          test -z "$(gofmt -l cmd/qazwire-cgrouplab/*.go)"
+
+      - name: Historical watchdog/cgroup 10x Go race
+        run: go test -tags qazwire_exp -race -count=10 ./cmd/qazwire-cgrouplab
+
+      - name: M1.7.0/M1.6.2 10x race and state-model
+        run: |
+          go test -tags qazwire_exp -race -count=10 ./internal/qazwireexp/klmproc17 ./internal/qazwireexp/klm16 ./internal/qazwireexp/staged16
+          python3 -I docs/qazwire/tools/r5_klm16_model.py --patched K3 K4 K6 > /tmp/model.txt
+          ! grep -q VIOLATED /tmp/model.txt
+
+      - name: Full experimental and upstream Go tests
+        run: |
+          go test -tags qazwire_exp -count=1 ./...
+          go test -tags qazwire_exp -race -count=1 ./...
+          go vet -tags qazwire_exp ./...
+          go test -count=1 ./...
+
+      - name: Declare limits
+        run: |
+          echo 'NO privileged host netns/nft/eBPF/real UDP tests executed in CI.'
+          echo 'Broker owned socket UID is NOT an unconditional controller-crash fail-closed guarantee.'
+          echo 'Owner host test, FD leak proof and actual Qalqan M2 still NO-GO.'
