@@ -1,0 +1,63 @@
+name: QazWire M1.7.2d SIGSTOP sudo process-group remediation
+on:
+  push:
+    branches:
+      - feature/m1-7-2d-detached-worker-stop-lab
+  pull_request:
+    branches:
+      - feature/m1-7-2d-safe-diagnostic-runner
+
+permissions:
+  contents: read
+
+jobs:
+  detached-worker-static:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact SHA
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Exact SHA and runtimes
+        run: |
+          git rev-parse HEAD
+          python3 --version
+          go version
+
+      - name: Offline test of detached worker SIGSTOP mitigation
+        run: |
+          set -euo pipefail
+          bash -n scripts/qazwire-m172d-controller-netns-lab.sh
+          python3 -B -m py_compile scripts/m172d_worker.py scripts/m172d_controller.py scripts/m172b_netns_probe.py scripts/m172d_detached_worker_tests.py
+          python3 -B scripts/m172d_detached_worker_tests.py
+          python3 -B scripts/m172d_safe_runner_tests.py
+          python3 -B scripts/m172d_static_tests.py
+          python3 -B scripts/m172c_static_tests.py
+          python3 -B scripts/m172b_static_tests.py
+          git diff --check
+          test -z "$(git status --porcelain --untracked-files=all)"
+          test -z "$(gofmt -l cmd/qazwire-cgrouplab/*.go)"
+
+      - name: Previous watchdog and cgroup Go race regressions
+        run: go test -tags qazwire_exp -race -count=10 ./cmd/qazwire-cgrouplab
+
+      - name: Previous M1.7.0/M1.6.2 race and bounded models
+        run: |
+          go test -tags qazwire_exp -race -count=10 ./internal/qazwireexp/klmproc17 ./internal/qazwireexp/klm16 ./internal/qazwireexp/staged16
+          python3 -I docs/qazwire/tools/r5_klm16_model.py --patched K3 K4 K6 > /tmp/model.txt
+          ! grep -q VIOLATED /tmp/model.txt
+
+      - name: Full experimental and upstream regression
+        run: |
+          go test -tags qazwire_exp -count=1 ./...
+          go test -tags qazwire_exp -race -count=1 ./...
+          go vet -tags qazwire_exp ./...
+          go test -count=1 ./...
+
+      - name: Explicit test-boundary statement
+        run: |
+          echo "CI never executes sudo, nftables, ip netns or real Linux SIGSTOP."
+          echo "Owner prior host attempt TIMEOUT remains unresolved until host evidence is inspected."
+          echo "No claim of root cause proven on Ubuntu, protected controller, immediate A0 or cryptography."
