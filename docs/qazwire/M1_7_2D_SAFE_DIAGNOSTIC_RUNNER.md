@@ -23,6 +23,40 @@ The **wrapper process** intentionally always exits with code **0** even when the
 
 This mechanism is unsuitable for unattended CI or job automation where nonzero failures must propagate. The new offline unit tests exercise the child-exit-42 path, log persistence, namespace parser and missing-proof classification WITHOUT sudo.
 
+## Local worktree preflight regression discovered on Ubuntu
+
+The owner ran `python3 scripts/m172d_safe_runner_tests.py` (9/9 PASS) in a
+fresh detached worktree at `05e4b154faabe28c8e0cfb43bfca34c99bee095d`.
+Immediately afterward, the diagnostic wrapper printed
+`STOP: dirty worktree, refusing privileged lab` and returned
+`M172D_CLASSIFICATION=STOP_ERROR`. The wrapper's git preflight blocked **before**
+`sudo -v` or creating any lab network namespace. The full `git status` output
+from that machine was **not supplied**, so the exact offending paths were not
+observed directly.
+
+A source-supported cause is the Python test's `importlib` import, which can
+create `scripts/__pycache__/` bytecode files. The previous root `.gitignore`
+did not exclude Python bytecode at all, causing Git's all-files clean check to
+consider these generated untracked artifacts a dirty worktree.
+
+This patch adds standard Python cache exclusions to `.gitignore`, prevents
+bytecode writes during the import-based offline test, and makes GitHub CI
+explicitly enforce clean `git status --porcelain --untracked-files=all` after
+the offline tests. The safety check against modified source and unrelated
+untracked files is **not relaxed**.
+
+To inspect the old worktree **without modifying anything**:
+
+```bash
+git -C ~/Документы/QazWire-m172d-diagnostic status --short --untracked-files=all
+```
+
+To verify the fix, use a **new detached worktree** from the updated branch
+commit, run `python3 -B scripts/m172d_safe_runner_tests.py`, then check
+`git status --short --untracked-files=all`. An empty status means that
+the cache issue no longer blocks the preflight; it is **not** evidence that
+the privileged network experiment has passed.
+
 ## Verification before any host retry
 
 The exact SHA in the CLI must match the current feature branch head, confirmed in GitHub.
