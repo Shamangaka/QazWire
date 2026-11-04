@@ -3,7 +3,7 @@
 """M1.7.2e offline synthetic broker. NOT VPN, encryption, or a secure daemon.
 
 The test broker's UDP socket belongs to UID 65533. nftables allows only this
-socket-owner UID to reach 198.18.28.2:44000 inside a new isolated lab netns.
+socket-owner UID to reach 198.18.27.2:44000 inside a new isolated lab netns.
 An unprivileged UID65534 worker NEVER has a direct packet permit.
 The broker receives small fixed-format messages over an abstract AF_UNIX stream
 socket, authenticates SO_PEERCRED UID65534, and never shares its UDP socket FD.
@@ -18,8 +18,8 @@ import time
 
 BROKER_UID = 65533
 WORKER_UID = 65534
-LOCAL = "198.18.28.1"
-REMOTE = ("198.18.28.2", 44000)
+LOCAL = "198.18.27.1"
+REMOTE = ("198.18.27.2", 44000)
 SOCKET_PREFIX = "\0qw_m172e_"
 PORTS = (44000, 44001)
 NONCE = re.compile(r"^[0-9a-f]{8}$", re.ASCII)
