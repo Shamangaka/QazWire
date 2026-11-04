@@ -224,8 +224,9 @@ allow() {
 start_worker() {
     local label=$1
     local logfile="$dir/worker-$label.log"
-    worker_exec /usr/bin/python3 -B -u -c "$worker_source" m172d_worker.py \
+    worker_exec /usr/bin/python3 -B -u -c "$worker_source" m172d_worker.py --detach \
         >"$logfile" 2>&1 &
+    local launcher_pid=$!
     local line=""
     for ((i=0; i<90; i++)); do
         if [[ -s "$logfile" ]]; then
@@ -236,6 +237,20 @@ start_worker() {
     done
     [[ -n "$line" ]] || { cat "$logfile"; echo "FAIL: worker not ready" >&2; exit 1; }
     worker_pid="${line#WORKER_READY_PID=}"
+    # All sudo-monitor and original worker-launch parents MUST exit before
+    # we ever send SIGSTOP to the detached session leader.
+    if ! wait "$launcher_pid"; then
+        echo "FAIL: worker's sudo launcher did not exit cleanly" >&2
+        exit 1
+    fi
+    local session pgid
+    session=$(ps -o sid= -p "$worker_pid" | tr -d '[:space:]')
+    pgid=$(ps -o pgid= -p "$worker_pid" | tr -d '[:space:]')
+    if [[ "$session" != "$worker_pid" || "$pgid" != "$worker_pid" ]]; then
+        echo "FAIL: worker did not detach from sudo's process group" >&2
+        exit 1
+    fi
+    echo "WORKER_DETACHED_SESSION_LEADER PID=$worker_pid SID=$session PGID=$pgid"
     sudo -n ip netns pids "$worker_ns" | grep -Fxq "$worker_pid" ||
         { echo "FAIL: worker not in the exact namespace" >&2; exit 1; }
     echo "WORKER_$label PID=$worker_pid"
