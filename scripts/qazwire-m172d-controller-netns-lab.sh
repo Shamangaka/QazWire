@@ -185,6 +185,12 @@ deny() {
         echo "FAIL: direct UDP unexpectedly worked: $out" >&2
         exit 1
     fi
+    # A failed exec, setpriv error, bad Python source or absent peer
+    # must not be misreported as successful kernel egress denial.
+    if [[ "$out" != DENIED\ port="$1"* ]]; then
+        echo "FAIL: refusal not proven by a direct UDP probe: $out" >&2
+        exit 1
+    fi
     echo "$out"
 }
 allow() {
