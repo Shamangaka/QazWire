@@ -105,6 +105,50 @@ class BrokerOwnedEgressContract(unittest.TestCase):
         fake_unix.sendall.assert_called_once_with(b"DENY:PEERCRED")
         fake_udp.sendto.assert_not_called()
 
+    def test_pidfd_exact_broker_command_identity(self):
+        source = BROKER.read_bytes().rstrip(b"\\n")
+
+        valid = b"\\0".join((
+            b"/usr/bin/python3",
+            b"-B",
+            b"-u",
+            b"-c",
+            source,
+            b"serve",
+            b"--nonce",
+            b"1234abcd",
+        )) + b"\\0"
+
+        self.assertTrue(
+            killer.matches_broker_cmdline(valid, "1234abcd")
+        )
+
+        self.assertFalse(
+            killer.matches_broker_cmdline(valid, "deadbeef")
+        )
+
+        self.assertFalse(
+            killer.matches_broker_cmdline(
+                valid + b"unexpected\\0", "1234abcd"
+            )
+        )
+
+        self.assertFalse(
+            killer.matches_broker_cmdline(
+                valid.replace(
+                    b"serve\\0", b"direct\\0", 1
+                ),
+                "1234abcd",
+            )
+        )
+
+        self.assertFalse(
+            killer.matches_broker_cmdline(
+                valid.replace(source, b"print('tampered')", 1),
+                "1234abcd",
+            )
+        )
+
     def test_pidfd_killer_refuses_host_and_unknown_namespace(self):
         for ns, nonce in (("default", "1234abcd"),
                           ("qwfa1234abcd", "00000000"),

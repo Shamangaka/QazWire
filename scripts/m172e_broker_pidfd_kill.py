@@ -14,6 +14,26 @@ NS = re.compile(r"^qwfa[0-9a-f]{8}$", re.ASCII)
 NONCE = re.compile(r"^[0-9a-f]{8}$", re.ASCII)
 
 
+def matches_broker_cmdline(raw, nonce):
+    # Bash command substitution removes trailing newline bytes.
+    source = Path(__file__).with_name(
+        "m172e_broker.py"
+    ).read_bytes().rstrip(b"\\n")
+
+    expected = b"\\0".join((
+        b"/usr/bin/python3",
+        b"-B",
+        b"-u",
+        b"-c",
+        source,
+        b"serve",
+        b"--nonce",
+        nonce.encode("ascii"),
+    )) + b"\\0"
+
+    return raw == expected
+
+
 def send(ns, nonce, pid):
     if os.geteuid() != 0:
         raise PermissionError("explicit sudo required")
@@ -49,9 +69,10 @@ def send(ns, nonce, pid):
         if os.getsid(pid) != pid or os.getpgid(pid) != pid:
             raise PermissionError("not an isolated broker session leader")
         args = Path(f"/proc/{pid}/cmdline").read_bytes()
-        if (b"m172e_broker.py" not in args or b"serve" not in args
-                or nonce.encode("ascii") not in args):
+        if not matches_broker_cmdline(args, nonce):
             raise PermissionError("broker command identity does not match")
+        if not os.path.samefile(f"/proc/{pid}/exe", "/usr/bin/python3"):
+            raise PermissionError("broker executable identity does not match")
         if poll.poll(0):
             raise ProcessLookupError("broker disappeared during verification")
         signal.pidfd_send_signal(fd, signal.SIGKILL, None, 0)
