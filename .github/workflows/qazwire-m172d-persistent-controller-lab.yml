@@ -1,0 +1,64 @@
+name: QazWire M1.7.2d persistent lab controller and kernel A0
+on:
+  push:
+    branches:
+      - feature/m1-7-2d-supervisor-revoke-lab
+  pull_request:
+    branches:
+      - feature/m1-7-2c-privsep-kernel-a0-lab
+
+permissions:
+  contents: read
+
+jobs:
+  m172d-static:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Host environment and exact SHA
+        run: |
+          git rev-parse HEAD
+          go version
+          python3 --version
+
+      - name: Static checks — no sudo/netns execution
+        run: |
+          set -euo pipefail
+          bash -n scripts/qazwire-m172d-controller-netns-lab.sh
+          bash -n scripts/qazwire-m172c-privsep-kernel-a0-lab.sh
+          python3 -m py_compile scripts/m172d_controller.py scripts/m172d_worker.py scripts/m172d_static_tests.py
+          python3 scripts/m172d_static_tests.py
+          python3 scripts/m172c_static_tests.py
+          python3 scripts/m172b_static_tests.py
+          test -z "$(gofmt -l cmd/qazwire-cgrouplab/*.go)"
+          git diff --check
+
+      - name: Ten runs of Go race watchdog/cgroup tests
+        run: go test -tags qazwire_exp -race -count=10 ./cmd/qazwire-cgrouplab
+
+      - name: Historical M1.7.0/M1.6.2 race and state-model regressions
+        run: |
+          go test -tags qazwire_exp -race -count=10 ./internal/qazwireexp/klmproc17 ./internal/qazwireexp/klm16 ./internal/qazwireexp/staged16
+          python3 -I docs/qazwire/tools/r5_klm16_model.py --patched K3 K4 K6 > /tmp/model.txt
+          ! grep -q VIOLATED /tmp/model.txt
+
+      - name: Full tagged suite and Go race tests
+        run: |
+          go test -tags qazwire_exp -count=1 ./...
+          go test -tags qazwire_exp -race -count=1 ./...
+
+      - name: Vet and upstream untagged regression
+        run: |
+          go vet -tags qazwire_exp ./...
+          go test -count=1 ./...
+
+      - name: Scope and security warning
+        run: |
+          echo 'This is a static CI PASS ONLY. No root, network namespaces, kernel nft rules or host packet test.'
+          echo 'Owner must manually run the sudo based two-netns lab at a pinned SHA.'
+          echo 'No protected systemd controller, crash-immediate A0, real keys or Qalqan.'
