@@ -70,8 +70,23 @@ cleanup() {
                 sleep 0.1
             done
             if (( drained == 0 )); then
-                echo "CLEANUP_FAILURE: lab tasks remain in $ns" >&2
-                rc=1
+                # A SIGSTOPed lab-only process cannot process SIGTERM.
+                # Escalate ONLY within this exact fresh lab namespace using
+                # individually verified PIDFDs, never a host-wide process kill.
+                echo "LAB_CLEANUP_ESCALATE: stopped tasks in $ns" >&2
+                sudo -n ip netns exec "$ns" python3 -B "$peer_helper" \
+                    terminate-members --force-kill || rc=1
+                for ((k=0; k<40; k++)); do
+                    if [[ -z "$(sudo -n ip netns pids "$ns" 2>/dev/null)" ]]; then
+                        drained=1
+                        break
+                    fi
+                    sleep 0.1
+                done
+                if (( drained == 0 )); then
+                    echo "CLEANUP_FAILURE: lab tasks still remain in $ns" >&2
+                    rc=1
+                fi
             fi
         fi
     done
