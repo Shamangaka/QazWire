@@ -1,0 +1,63 @@
+name: QazWire M1.7.2c privsep kernel A0 research-only
+on:
+  push:
+    branches:
+      - feature/m1-7-2c-privsep-kernel-a0-lab
+  pull_request:
+    branches:
+      - feature/m1-7-2b-kernel-a0-netns-lab
+
+permissions:
+  contents: read
+
+jobs:
+  m172c-static:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Print exact SHA
+        run: |
+          git rev-parse HEAD
+          go version
+          python3 --version
+
+      - name: Static syntax and security-policy contracts
+        run: |
+          set -euo pipefail
+          bash -n scripts/qazwire-m172c-privsep-kernel-a0-lab.sh
+          bash -n scripts/qazwire-m172b-kernel-a0-netns-lab.sh
+          python3 -m py_compile scripts/m172c_static_tests.py scripts/m172b_static_tests.py scripts/m172b_netns_probe.py
+          python3 scripts/m172c_static_tests.py
+          python3 scripts/m172b_static_tests.py
+          test -z "$(gofmt -l cmd/qazwire-cgrouplab/*.go)"
+          git diff --check
+
+      - name: Synthetic watchdog and cgroup unit tests under race
+        run: go test -tags qazwire_exp -race -count=10 ./cmd/qazwire-cgrouplab
+
+      - name: M1.7.0 IPC and M1.6.2 R5 regressions
+        run: |
+          go test -tags qazwire_exp -race -count=10 ./internal/qazwireexp/klmproc17 ./internal/qazwireexp/klm16 ./internal/qazwireexp/staged16
+          python3 -I docs/qazwire/tools/r5_klm16_model.py --patched K3 K4 K6 > /tmp/r5-model.txt
+          ! grep -q VIOLATED /tmp/r5-model.txt
+
+      - name: Full tagged tests and race detector
+        run: |
+          go test -tags qazwire_exp -count=1 ./...
+          go test -tags qazwire_exp -race -count=1 ./...
+
+      - name: Vet and upstream untagged tests
+        run: |
+          go vet -tags qazwire_exp ./...
+          go test -count=1 ./...
+
+      - name: Explicit privileged host test boundary
+        run: |
+          echo "Static CI PASS only. No nftables/netns changes or sudo invoked."
+          echo "Owner Ubuntu host must separately test the new privsep worker at exact SHA."
+          echo "No persistent supervisor or immediate watchdog-crash fail-closed claim."
