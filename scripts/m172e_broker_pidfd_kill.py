@@ -18,9 +18,9 @@ def matches_broker_cmdline(raw, nonce):
     # Bash command substitution removes trailing newline bytes.
     source = Path(__file__).with_name(
         "m172e_broker.py"
-    ).read_bytes().rstrip(b"\\n")
+    ).read_bytes().rstrip(b"\n")
 
-    expected = b"\\0".join((
+    expected = b"\0".join((
         b"/usr/bin/python3",
         b"-B",
         b"-u",
@@ -29,7 +29,7 @@ def matches_broker_cmdline(raw, nonce):
         b"serve",
         b"--nonce",
         nonce.encode("ascii"),
-    )) + b"\\0"
+    )) + b"\0"
 
     return raw == expected
 
