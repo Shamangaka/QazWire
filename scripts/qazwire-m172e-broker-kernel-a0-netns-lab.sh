@@ -154,8 +154,8 @@ run_uid() {
         --inh-caps=-all --ambient-caps=-all --bounding-set=-all \
         --no-new-privs --reset-env "$@"
 }
-worker() { run_uid 65534 /usr/bin/python3 -B -u -c "$broker_source" m172e_broker.py "$@"; }
-unauthorized() { run_uid 65532 /usr/bin/python3 -B -u -c "$broker_source" m172e_broker.py "$@"; }
+worker() { run_uid 65534 /usr/bin/python3 -B -u -c "$broker_source" "$@"; }
+unauthorized() { run_uid 65532 /usr/bin/python3 -B -u -c "$broker_source" "$@"; }
 
 expect_code_and_line() {
     local wanted=$1 marker=$2
@@ -175,7 +175,7 @@ expect_code_and_line 12 "DIRECT_DENIED port=44001" worker direct --port 44001
 echo "========== START DETACHED CAPLESS BROKER UID65533 =========="
 # sudo-monitored launcher MUST EXIT before broker SIGKILL. Broker forked child
 # is a separate session leader with no inherited TTY/stdout descriptors.
-run_uid 65533 /usr/bin/python3 -B -u -c "$broker_source" m172e_broker.py serve --nonce "$nonce" \
+run_uid 65533 /usr/bin/python3 -B -u -c "$broker_source" serve --nonce "$nonce" \
     > "$dir/broker.log" 2>&1 &
 launcher_pid=$!
 found=""
