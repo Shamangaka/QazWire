@@ -8,9 +8,12 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+import sys
 from unittest import mock
 
 HERE = Path(__file__).resolve().parent
+# Offline test imports should not create __pycache__ in the pinned worktree.
+sys.dont_write_bytecode = True
 MODULE = HERE / "m172d_safe_diagnostic_runner.py"
 spec = importlib.util.spec_from_file_location("m172d_safe_runner", MODULE)
 m = importlib.util.module_from_spec(spec)
