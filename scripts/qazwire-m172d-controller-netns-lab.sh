@@ -74,7 +74,7 @@ cleanup() {
         rc=1
     fi
     rm -rf -- "$dir" || rc=1
-    if (( rc == 0 )); then echo "M1.7.2c CLEANUP PASS"; fi
+    if (( rc == 0 )); then echo "M1.7.2d CLEANUP PASS"; fi
     exit "$rc"
 }
 trap cleanup EXIT
