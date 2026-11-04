@@ -60,6 +60,11 @@ class M172DStaticTests(unittest.TestCase):
         self.assertIn('sudo -n ip netns pids "$ns"', s)
         self.assertIn("CLEANUP_FAILURE", s)
         self.assertIn("KNOWN_GAP_CONFIRMED", s)
+        self.assertIn("M172D_COMMAND_FAILED", s)
+        self.assertIn("diagnostics preserved at:", s)
+        # Failure logs must NOT be deleted by the blanket EXIT trap.
+        self.assertIn('if (( rc != 0 )); then', s)
+        self.assertIn('rm -rf -- "$dir" || rc=1', s)
         self.assertNotIn("sudo nft flush ruleset", s)
         self.assertNotIn("sudo nft add table", s)
         self.assertNotIn("sudo ip route add", s)
