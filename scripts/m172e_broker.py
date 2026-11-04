@@ -129,10 +129,15 @@ def send_direct(port):
         try:
             s.sendto(payload, (REMOTE[0], port))
             result, addr = s.recvfrom(512)
-        except OSError as exc:
+        except PermissionError as exc:
+            # Only an explicit kernel permission refusal counts as nft DENY.
             print(f"DIRECT_DENIED port={port} cause={type(exc).__name__}",
                   flush=True)
             return 12
+        except OSError as exc:
+            print(f"DIRECT_INCONCLUSIVE port={port} cause={type(exc).__name__}",
+                  flush=True)
+            return 13
     if addr == (REMOTE[0], port) and result == payload:
         print(f"DIRECT_ECHO port={port}", flush=True)
         return 0
@@ -149,10 +154,14 @@ def request(nonce, *, expected_uid=WORKER_UID):
             s.connect(address(nonce))
             s.sendall(payload)
             response = s.recv(256)
-        except OSError as exc:
+        except (ConnectionRefusedError, FileNotFoundError) as exc:
             print(f"IPC_UNAVAILABLE cause={type(exc).__name__}",
                   flush=True)
             return 12
+        except OSError as exc:
+            print(f"IPC_INCONCLUSIVE cause={type(exc).__name__}",
+                  flush=True)
+            return 13
     if expected_uid != WORKER_UID:
         if response == b"DENY:PEERCRED":
             print("IPC_UNAUTHORIZED_PEER_DENIED", flush=True)
