@@ -78,8 +78,9 @@ def fingerprints(root):
 
 
 def run_detached_lab(script, root, logfile, timeout=120):
-    """Run child bash in a new session, preserving output independently.
+    """Run child in a separate process GROUP within the same terminal session.
 
+    Keeping the controlling terminal preserves sudo's per-TTY cached ticket.
     On timeout sends SIGTERM to the exact child bash PID, NOT process group.
     It never SIGKILLs root children, host PIDs or namespace processes.
     A timed-out child may leave resources; operator MUST inspect namespaces.
@@ -91,7 +92,7 @@ def run_detached_lab(script, root, logfile, timeout=120):
             stdin=subprocess.DEVNULL,
             stdout=out,
             stderr=subprocess.STDOUT,
-            start_new_session=True,
+            process_group=0,  # new PGID, same terminal session for sudo -n
             close_fds=True,
             env=os.environ.copy(),
         )
